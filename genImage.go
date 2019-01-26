@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"image"
+	"image/png"
 
 	"github.com/generaltso/vibrant"
 	"github.com/pkg/errors"
@@ -20,12 +22,12 @@ func getColorPallete(img image.Image) (returnedColors, error) {
 	}
 	colors := pallete.ExtractAwesome()
 
-	if colors["Vibrant"] == nil || colors["Muted"] == nil {
+	if colors["Vibrant"] == nil || colors["DarkMuted"] == nil {
 		return getMissingColors(colors), nil
 	}
 	return returnedColors{
 		Main:      colors["Vibrant"].Color,
-		Secondary: colors["Muted"].Color,
+		Secondary: colors["DarkMuted"].Color,
 	}, nil
 }
 
@@ -53,52 +55,47 @@ func getMissingColors(colors map[string]*vibrant.Swatch) returnedColors {
 }
 
 func addCircleIcon(img *image.Image, base *imagick.MagickWand) error {
-	mask1 := imagick.NewMagickWand()
-	defer mask1.Destroy()
-	mask2 := imagick.NewMagickWand()
-	defer mask2.Destroy()
 	profilePic := imagick.NewMagickWand()
 	defer profilePic.Destroy()
-	circleProfilePic := imagick.NewMagickWand()
-	defer circleProfilePic.Destroy()
+	buffer := new(bytes.Buffer)
+	err := png.Encode(buffer, *img)
+	if err != nil {
+		return errors.Wrap(err, "Loading Image into Wand")
+	}
+	profilePic.ReadImageBlob(buffer.Bytes())
+	profilePic.ResizeImage(450, 450, imagick.FILTER_UNDEFINED)
+	height := profilePic.GetImageHeight()
+	width := profilePic.GetImageWidth()
+
+	circleMask := imagick.NewMagickWand()
 	pw := imagick.NewPixelWand()
+	circleDraw := imagick.NewDrawingWand()
+	defer circleMask.Destroy()
 	defer pw.Destroy()
-	drawProfilePic := imagick.NewDrawingWand()
-	defer drawProfilePic.Destroy()
-	profilePicDW := imagick.NewDrawingWand()
-	defer profilePicDW.Destroy()
-	err := mask1.ReadImage("secondMask.png")
-	if err != nil {
-		return errors.Wrap(err, "Reading Mask 2")
-	}
-	err = mask2.ReadImage("mainMask.png")
-	if err != nil {
-		return errors.Wrap(err, "Reading Mask 1")
-	}
-	profilePic.ReadImage("test2.jpg")
-	circleProfilePic.NewImage(1000, 1000, pw)
+	defer circleDraw.Destroy()
+	pw.SetColor("black")
+	circleMask.NewImage(height, width, pw)
 
-	mask1.SetImageMatte(false)
-	mask2.SetImageMatte(false)
-	base.SetImageMatte(false)
+	pw.SetColor("white")
+	circleDraw.SetFillColor(pw)
+	circleDraw.Circle(float64(height/2), float64(width/2), float64(height/2), 0)
+	circleMask.DrawImage(circleDraw)
 
-	base.CompositeImage(mask1, imagick.COMPOSITE_OP_COPY_ALPHA, true, 0, 0)
+	circleMask.SetImageMatte(false)
+	profilePic.SetImageMatte(false)
+	profilePic.CompositeImage(circleMask, imagick.COMPOSITE_OP_COPY_ALPHA, true, 0, 0)
 
-	drawProfilePic.Composite(imagick.COMPOSITE_OP_UNDEFINED, -40, -40, 400, 400, profilePic)
-	circleProfilePic.DrawImage(drawProfilePic)
-	circleProfilePic.CompositeImage(mask2, imagick.COMPOSITE_OP_COPY_ALPHA, true, 0, 0)
-	profilePicDW.Composite(imagick.COMPOSITE_OP_UNDEFINED, 0, 0, 0, 0, circleProfilePic)
-
-	base.DrawImage(profilePicDW)
+	base.CompositeImage(profilePic, imagick.COMPOSITE_OP_OVER, true, -90, -120)
 	return nil
 }
 
 func drawCircles(base *imagick.MagickWand, colors returnedColors) {
 	mask := imagick.NewMagickWand()
-	defer mask.Destroy()
 	pw := imagick.NewPixelWand()
+	defer mask.Destroy()
 	defer pw.Destroy()
 	mainImg := imagick.NewMagickWand()
+	mask.ReadImage("circleMask.png")
 
 	pw.SetColor(colors.Secondary.RGBHex())
 	mainImg.NewImage(1000, 1000, pw)
@@ -106,10 +103,45 @@ func drawCircles(base *imagick.MagickWand, colors returnedColors) {
 	mainImg.SetImageMatte(false)
 	mask.SetImageMatte(false)
 
-	mainImg.CompositeImage(mask)
+	mainImg.CompositeImage(mask, imagick.COMPOSITE_OP_COPY_ALPHA, true, 0, 0)
+	base.CompositeImage(mainImg, imagick.COMPOSITE_OP_OVER, true, 0, 0)
 }
 
-func createImage(img image.Image, userID string) error {
+func drawText(base *imagick.MagickWand, name, hoursPlayed, gamesPlayed string, colors returnedColors) {
+	textWand := imagick.NewDrawingWand()
+	textColor := imagick.NewPixelWand()
+	defer textWand.Destroy()
+	defer textColor.Destroy()
+	textColor.SetColor(colors.Main.RGBHex())
+	textWand.SetFont("main.ttf")
+	textWand.SetFillColor(textColor)
+	textWand.SetFontSize(70)
+	textWand.SetGravity(imagick.GRAVITY_CENTER)
+
+	if len(name) >= 16 {
+		name = name[:16] + "\n" + name[16:]
+	}
+
+	textWand.Annotation(-345, 0, hoursPlayed+"\nHours\nPlayed")
+	textWand.Annotation(-345, 310, gamesPlayed+"\nGames\nPlayed")
+
+	textWand.SetFontSize(100)
+	textColor.SetColor(colors.Secondary.RGBHex())
+	textWand.SetFillColor(textColor)
+	textWand.Annotation(170, -300, name+"\nStats")
+	base.DrawImage(textWand)
+
+}
+
+func addGraph(base *imagick.MagickWand, graph *bytes.Buffer) {
+	graphWand := imagick.NewMagickWand()
+	defer graphWand.Destroy()
+	graphWand.ReadImageBlob(graph.Bytes())
+
+	base.CompositeImage(graphWand, imagick.COMPOSITE_OP_OVER, true, 350, 350)
+}
+
+func createImage(img image.Image, hoursPlayed, gamesPlayed, name string, graph *bytes.Buffer) error {
 	imagick.Initialize()
 	defer imagick.Terminate()
 	mainImg := imagick.NewMagickWand()
@@ -122,7 +154,10 @@ func createImage(img image.Image, userID string) error {
 	mainImg.NewImage(1000, 1000, bgColor)
 
 	drawCircles(mainImg, colors)
-	addCircleIcon(nil, mainImg)
+	addCircleIcon(&img, mainImg)
+	drawText(mainImg, name, hoursPlayed, gamesPlayed, colors)
+	addGraph(mainImg, graph)
+
 	mainImg.WriteImage("test.png")
 	return nil
 }
