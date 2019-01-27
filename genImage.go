@@ -7,7 +7,7 @@ import (
 
 	"github.com/generaltso/vibrant"
 	"github.com/pkg/errors"
-	"gopkg.in/gographics/imagick.v3/imagick"
+	"gopkg.in/gographics/imagick.v2/imagick"
 )
 
 type returnedColors struct {
@@ -15,8 +15,8 @@ type returnedColors struct {
 	Secondary vibrant.Color
 }
 
-func getColorPallete(img image.Image) (returnedColors, error) {
-	pallete, err := vibrant.NewPaletteFromImage(img)
+func getColorPallete(img *image.Image) (returnedColors, error) {
+	pallete, err := vibrant.NewPaletteFromImage(*img)
 	if err != nil {
 		errors.Wrap(err, "Generating Color Pallete")
 	}
@@ -89,7 +89,7 @@ func addCircleIcon(img *image.Image, base *imagick.MagickWand) error {
 	return nil
 }
 
-func drawCircles(base *imagick.MagickWand, colors returnedColors) {
+func drawCircles(base *imagick.MagickWand, colors returnedColors) error {
 	mask := imagick.NewMagickWand()
 	pw := imagick.NewPixelWand()
 	defer mask.Destroy()
@@ -105,9 +105,10 @@ func drawCircles(base *imagick.MagickWand, colors returnedColors) {
 
 	mainImg.CompositeImage(mask, imagick.COMPOSITE_OP_COPY_ALPHA, true, 0, 0)
 	base.CompositeImage(mainImg, imagick.COMPOSITE_OP_OVER, true, 0, 0)
+	return nil
 }
 
-func drawText(base *imagick.MagickWand, name, hoursPlayed, gamesPlayed string, colors returnedColors) {
+func drawText(base *imagick.MagickWand, name, hoursPlayed, gamesPlayed string, colors returnedColors) error {
 	textWand := imagick.NewDrawingWand()
 	textColor := imagick.NewPixelWand()
 	defer textWand.Destroy()
@@ -130,18 +131,20 @@ func drawText(base *imagick.MagickWand, name, hoursPlayed, gamesPlayed string, c
 	textWand.SetFillColor(textColor)
 	textWand.Annotation(170, -300, name+"\nStats")
 	base.DrawImage(textWand)
-
+	return nil
 }
 
-func addGraph(base *imagick.MagickWand, graph *bytes.Buffer) {
+func addGraph(base *imagick.MagickWand, graph *bytes.Buffer) error {
 	graphWand := imagick.NewMagickWand()
 	defer graphWand.Destroy()
 	graphWand.ReadImageBlob(graph.Bytes())
 
 	base.CompositeImage(graphWand, imagick.COMPOSITE_OP_OVER, true, 350, 350)
+	return nil
 }
 
-func createImage(img image.Image, hoursPlayed, gamesPlayed, name string, graph *bytes.Buffer) error {
+func createImage(img *image.Image, hoursPlayed, gamesPlayed, name string, graph *bytes.Buffer) error {
+	var err error
 	imagick.Initialize()
 	defer imagick.Terminate()
 	mainImg := imagick.NewMagickWand()
@@ -153,11 +156,10 @@ func createImage(img image.Image, hoursPlayed, gamesPlayed, name string, graph *
 	bgColor.SetColor(colors.Main.RGBHex())
 	mainImg.NewImage(1000, 1000, bgColor)
 
-	drawCircles(mainImg, colors)
-	addCircleIcon(&img, mainImg)
-	drawText(mainImg, name, hoursPlayed, gamesPlayed, colors)
-	addGraph(mainImg, graph)
-
+	err = drawCircles(mainImg, colors)
+	err = addCircleIcon(img, mainImg)
+	err = drawText(mainImg, name, hoursPlayed, gamesPlayed, colors)
+	err = addGraph(mainImg, graph)
 	mainImg.WriteImage("test.png")
-	return nil
+	return err
 }

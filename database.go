@@ -5,35 +5,43 @@ import (
 	"github.com/globalsign/mgo/bson"
 )
 
-type gameStatsStruct struct {
+type stat struct {
+	_id    bson.ObjectId
+	ID     string
+	Game   string
+	Hours  float64
+	Ignore bool
+}
+
+type icon struct {
 	_id      bson.ObjectId
-	ID       string
 	Game     string
-	Hours    float64
-	Ignore   bool
 	Location string
 	Color    string
+}
+
+type blacklist struct {
 }
 
 type datastore struct {
 	session *mgo.Session
 }
 
-func (datastore *datastore) findOne(collectionName string, query bson.M, results *gameStatsStruct) {
+func (datastore *datastore) findOne(collectionName string, query bson.M, result interface{}) {
 	db := datastore.session.Copy()
 	defer db.Close()
 
-	db.DB("").C(collectionName).Find(query).One(results)
+	db.DB("").C(collectionName).Find(query).One(result)
 }
 
-func (datastore *datastore) findAll(collectionName string, query bson.M, results *[]gameStatsStruct) {
+func (datastore *datastore) findAll(collectionName string, query bson.M, results interface{}) {
 	db := datastore.session.Copy()
 	defer db.Close()
 
 	db.DB("").C(collectionName).Find(query).All(results)
 }
 
-func (datastore *datastore) findAllSort(collectionName, sort string, query bson.M, results *[]gameStatsStruct) {
+func (datastore *datastore) findAllSort(collectionName, sort string, query bson.M, results interface{}) {
 	db := datastore.session.Copy()
 	defer db.Close()
 
