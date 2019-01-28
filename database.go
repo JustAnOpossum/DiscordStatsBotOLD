@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 )
@@ -46,6 +48,17 @@ func (datastore *datastore) findAllSort(collectionName, sort string, query bson.
 	defer db.Close()
 
 	db.DB("").C(collectionName).Find(query).Sort(sort).All(results)
+}
+
+func (datastore *datastore) countHours(collectionName string, query bson.M) {
+	db := datastore.session.Copy()
+	defer db.Close()
+	collection := db.DB("").C(collectionName)
+	var result = []bson.M{}
+
+	pipe := collection.Pipe([]bson.M{{"$totalHours": bson.M{"hours": 1, "total": bson.M{"$add": bson.ElementArray{"hours"}}}}})
+	pipe.All(&result)
+	fmt.Println(result)
 }
 
 func setUpDB() (*mgo.Session, *datastore) {

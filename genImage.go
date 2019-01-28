@@ -4,16 +4,23 @@ import (
 	"bytes"
 	"image"
 	"image/png"
+	"path"
 
 	"github.com/generaltso/vibrant"
+	"github.com/globalsign/mgo/bson"
 	"github.com/pkg/errors"
-	"gopkg.in/gographics/imagick.v2/imagick"
+	"gopkg.in/gographics/imagick.v3/imagick"
 )
 
 type returnedColors struct {
 	Main      vibrant.Color
 	Secondary vibrant.Color
 }
+
+const dataDir string = "/mnt/c/Users/camer/Desktop/GO/Data/stats"
+
+var pixelWidthBetween = [5]float64{0, 305, 205, 155, 125}
+var pixelWidthStart = [5]float64{620, 475, 420, 395, 380}
 
 func getColorPallete(img *image.Image) (returnedColors, error) {
 	pallete, err := vibrant.NewPaletteFromImage(*img)
@@ -134,16 +141,78 @@ func drawText(base *imagick.MagickWand, name, hoursPlayed, gamesPlayed string, c
 	return nil
 }
 
-func addGraph(base *imagick.MagickWand, graph *bytes.Buffer) error {
+func addGraph(base *imagick.MagickWand, graphType string, profilePic *image.Image, colors returnedColors, userID string) error {
 	graphWand := imagick.NewMagickWand()
+	iconWand := imagick.NewMagickWand()
+	iconDrawingWand := imagick.NewDrawingWand()
 	defer graphWand.Destroy()
-	graphWand.ReadImageBlob(graph.Bytes())
+	defer iconWand.Destroy()
+	defer iconDrawingWand.Destroy()
 
-	base.CompositeImage(graphWand, imagick.COMPOSITE_OP_OVER, true, 350, 350)
+	switch graphType {
+	case "bar":
+		var userStatResults []stat
+		var userStatsForGraph []stat
+		var iconForGraph = make(map[string]icon)
+		var lengthOfGraph int
+		db.findAllSort("gamestats", "-hours", bson.M{"id": userID, "ignore": false}, &userStatResults)
+
+		if len(userStatResults) >= 5 {
+			lengthOfGraph = 4
+		} else {
+			lengthOfGraph = len(userStatResults) - 1
+		}
+		for i, item := range userStatResults {
+			if i == 5 {
+				break
+			}
+			var currentIcon icon
+			db.findOne("gameicons", bson.M{"game": item.Game}, &currentIcon)
+			iconForGraph[currentIcon.Game] = currentIcon
+			userStatsForGraph = append(userStatsForGraph, item)
+
+			iconWand.ReadImage(path.Join(dataDir, currentIcon.Location))
+			iconWand.ResizeImage(100, 100, imagick.FILTER_UNDEFINED)
+			var whereToDraw float64
+			if i == 0 {
+				whereToDraw = pixelWidthStart[lengthOfGraph]
+			} else {
+				whereToDraw = pixelWidthStart[lengthOfGraph] + (pixelWidthBetween[lengthOfGraph] * float64(i))
+			}
+			iconDrawingWand.Composite(imagick.COMPOSITE_OP_OVER, whereToDraw, 850, 100, 100, iconWand)
+		}
+		base.DrawImage(iconDrawingWand)
+
+		barChart, err := createBarChart(userStatsForGraph, iconForGraph, profilePic, colors)
+		if err != nil {
+			return errors.Wrap(err, "Generating Graph")
+		}
+		graphWand.ReadImageBlob(barChart.Bytes())
+		base.CompositeImage(graphWand, imagick.COMPOSITE_OP_OVER, true, 350, 350)
+		break
+	case "pie":
+		var statsToSend []stat
+		var iconsToSend = make(map[string]icon)
+		db.findAllSort("gamestats", "-hours", bson.M{"id": userID, "ignore": false}, &statsToSend)
+
+		for _, item := range statsToSend {
+			var currentIcon icon
+			db.findOne("gameicons", bson.M{"game": item.Game}, &currentIcon)
+			iconsToSend[currentIcon.Game] = currentIcon
+		}
+
+		pieChart, err := createPieChart(statsToSend, iconsToSend)
+		if err != nil {
+			return errors.Wrap(err, "Generating Pie Chart")
+		}
+		graphWand.ReadImageBlob(pieChart.Bytes())
+		base.CompositeImage(graphWand, imagick.COMPOSITE_OP_OVER, true, 350, 350)
+		break
+	}
 	return nil
 }
 
-func createImage(img *image.Image, hoursPlayed, gamesPlayed, name string, graph *bytes.Buffer) error {
+func createImage(img *image.Image, hoursPlayed, gamesPlayed, name string, graphType string, userID string) error {
 	var err error
 	imagick.Initialize()
 	defer imagick.Terminate()
@@ -159,7 +228,7 @@ func createImage(img *image.Image, hoursPlayed, gamesPlayed, name string, graph 
 	err = drawCircles(mainImg, colors)
 	err = addCircleIcon(img, mainImg)
 	err = drawText(mainImg, name, hoursPlayed, gamesPlayed, colors)
-	err = addGraph(mainImg, graph)
+	err = addGraph(mainImg, graphType, img, colors, userID)
 	mainImg.WriteImage("test.png")
 	return err
 }
