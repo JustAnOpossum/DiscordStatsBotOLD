@@ -7,20 +7,19 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/globalsign/mgo/bson"
 	"github.com/pkg/errors"
 )
 
 var db *datastore
 
 func main() {
-	// img, _ := loadDiscordAvatar("https://cdn.discordapp.com/avatars/208075632746168322/8d4de5cdf920194f77cb2931c84cbc4a.png?size=512")
+	img, _ := loadDiscordAvatar("https://cdn.discordapp.com/avatars/461294052529143825/ccf81d3c7ee8cf6b794cfbd81f0c9889.png?size=512")
 	session, dbStruct := setUpDB()
 	db = dbStruct
 	defer session.Close()
-	// err := createImage(&img, "21", "30", "DasFox", "pie", "208075632746168322")
+	// err := createImage(&img, "21", "30", "DasFox", "bar", "68553027849564160")
 	// fmt.Println(err)
-	db.countHours("gamestats", bson.M{"id": "208075632746168322"})
+	createBotImage(&img, "Stats Bot", "900", "400", "1000", "5", "80")
 }
 
 func loadDiscordAvatar(url string) (image.Image, error) {

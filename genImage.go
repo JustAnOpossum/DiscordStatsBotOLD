@@ -96,13 +96,13 @@ func addCircleIcon(img *image.Image, base *imagick.MagickWand) error {
 	return nil
 }
 
-func drawCircles(base *imagick.MagickWand, colors returnedColors) error {
+func drawCircles(base *imagick.MagickWand, colors returnedColors, maskToUse string) error {
 	mask := imagick.NewMagickWand()
 	pw := imagick.NewPixelWand()
 	defer mask.Destroy()
 	defer pw.Destroy()
 	mainImg := imagick.NewMagickWand()
-	mask.ReadImage("circleMask.png")
+	mask.ReadImage(maskToUse)
 
 	pw.SetColor(colors.Secondary.RGBHex())
 	mainImg.NewImage(1000, 1000, pw)
@@ -137,6 +137,33 @@ func drawText(base *imagick.MagickWand, name, hoursPlayed, gamesPlayed string, c
 	textColor.SetColor(colors.Secondary.RGBHex())
 	textWand.SetFillColor(textColor)
 	textWand.Annotation(170, -300, name+"\nStats")
+	base.DrawImage(textWand)
+	return nil
+}
+
+func drawBotText(base *imagick.MagickWand, name, totalStats, totalGames, totalImgGenerated, totalServers, totalUsers string, colors returnedColors) error {
+	textWand := imagick.NewDrawingWand()
+	textColor := imagick.NewPixelWand()
+	defer textWand.Destroy()
+	defer textColor.Destroy()
+	textColor.SetColor(colors.Main.RGBHex())
+	textWand.SetFont("main.ttf")
+	textWand.SetFillColor(textColor)
+	textWand.SetGravity(imagick.GRAVITY_CENTER)
+
+	textWand.SetFontSize(70)
+	textWand.Annotation(-345, 0, totalStats+"\nTotal\nStats")
+	textWand.Annotation(-345, 310, totalGames+"\nTotal\nGames")
+	textWand.Annotation(-40, 0, totalUsers+"\nTotal\nUsers")
+	textWand.Annotation(-40, 310, totalServers+"\nTotal\nServers")
+	textWand.SetFontSize(90)
+	textWand.Annotation(290, 150, totalImgGenerated+"\nImages\nGenerated!")
+
+	textWand.SetFontSize(100)
+	textColor.SetColor(colors.Secondary.RGBHex())
+	textWand.SetFillColor(textColor)
+	textWand.Annotation(170, -300, name+"\nStats")
+
 	base.DrawImage(textWand)
 	return nil
 }
@@ -225,10 +252,30 @@ func createImage(img *image.Image, hoursPlayed, gamesPlayed, name string, graphT
 	bgColor.SetColor(colors.Main.RGBHex())
 	mainImg.NewImage(1000, 1000, bgColor)
 
-	err = drawCircles(mainImg, colors)
+	err = drawCircles(mainImg, colors, "normalMask.png")
 	err = addCircleIcon(img, mainImg)
 	err = drawText(mainImg, name, hoursPlayed, gamesPlayed, colors)
 	err = addGraph(mainImg, graphType, img, colors, userID)
+	mainImg.WriteImage("test.png")
+	return err
+}
+
+func createBotImage(profilePic *image.Image, name, totalStats, totalGames, totalImgGenerated, totalServers, totalUsers string) error {
+	var err error
+	imagick.Initialize()
+	defer imagick.Terminate()
+	mainImg := imagick.NewMagickWand()
+	defer mainImg.Destroy()
+	bgColor := imagick.NewPixelWand()
+	defer bgColor.Destroy()
+
+	colors, _ := getColorPallete(profilePic)
+	bgColor.SetColor(colors.Main.RGBHex())
+	mainImg.NewImage(1000, 1000, bgColor)
+
+	err = drawCircles(mainImg, colors, "botMask.png")
+	err = addCircleIcon(profilePic, mainImg)
+	err = drawBotText(mainImg, name, totalStats, totalGames, totalImgGenerated, totalServers, totalUsers, colors)
 	mainImg.WriteImage("test.png")
 	return err
 }

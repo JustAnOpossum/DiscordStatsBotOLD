@@ -6,6 +6,7 @@ import (
 	"image"
 	"math"
 
+	"github.com/globalsign/mgo/bson"
 	"github.com/pkg/errors"
 	chart "github.com/wcharczuk/go-chart"
 	"github.com/wcharczuk/go-chart/drawing"
@@ -77,7 +78,12 @@ func createBarChart(userStats []stat, icons map[string]icon, profilePic *image.I
 }
 
 func createPieChart(userStats []stat, icons map[string]icon) (*bytes.Buffer, error) {
+	if len(userStats) == 0 {
+		return new(bytes.Buffer), nil
+	}
+
 	var valuesToAdd []chart.Value
+	totalHours := db.countHours(bson.M{"id": userStats[0].ID})
 
 	for _, item := range userStats {
 		var label string
@@ -85,9 +91,7 @@ func createPieChart(userStats []stat, icons map[string]icon) (*bytes.Buffer, err
 		if err != nil {
 			return nil, errors.Wrap(err, "Parsing Hex")
 		}
-		if item.Hours < 5 {
-			label = ""
-		} else {
+		if item.Hours/totalHours > 0.10 {
 			label = item.Game
 		}
 		RGB := parseHex.ToRGB()

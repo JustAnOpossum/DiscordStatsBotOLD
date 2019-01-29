@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"math"
 
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
@@ -30,35 +30,37 @@ type datastore struct {
 }
 
 func (datastore *datastore) findOne(collectionName string, query bson.M, result interface{}) {
-	db := datastore.session.Copy()
-	defer db.Close()
+	data := datastore.session.Copy()
+	defer data.Close()
 
-	db.DB("").C(collectionName).Find(query).One(result)
+	data.DB("").C(collectionName).Find(query).One(result)
 }
 
 func (datastore *datastore) findAll(collectionName string, query bson.M, results interface{}) {
-	db := datastore.session.Copy()
-	defer db.Close()
+	data := datastore.session.Copy()
+	defer data.Close()
 
-	db.DB("").C(collectionName).Find(query).All(results)
+	data.DB("").C(collectionName).Find(query).All(results)
 }
 
 func (datastore *datastore) findAllSort(collectionName, sort string, query bson.M, results interface{}) {
-	db := datastore.session.Copy()
-	defer db.Close()
+	data := datastore.session.Copy()
+	defer data.Close()
 
-	db.DB("").C(collectionName).Find(query).Sort(sort).All(results)
+	data.DB("").C(collectionName).Find(query).Sort(sort).All(results)
 }
 
-func (datastore *datastore) countHours(collectionName string, query bson.M) {
-	db := datastore.session.Copy()
-	defer db.Close()
-	collection := db.DB("").C(collectionName)
-	var result = []bson.M{}
+func (datastore *datastore) countHours(query bson.M) float64 {
+	data := datastore.session.Copy()
+	defer data.Close()
+	var result []stat
+	var totalHours float64
 
-	pipe := collection.Pipe([]bson.M{{"$totalHours": bson.M{"hours": 1, "total": bson.M{"$add": bson.ElementArray{"hours"}}}}})
-	pipe.All(&result)
-	fmt.Println(result)
+	data.DB("").C("gamestats").Find(query).All(&result)
+	for _, item := range result {
+		totalHours += item.Hours
+	}
+	return math.Round(totalHours)
 }
 
 func setUpDB() (*mgo.Session, *datastore) {
