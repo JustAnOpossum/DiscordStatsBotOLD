@@ -10,6 +10,11 @@ var discordUsers = make(map[string]discordUser)
 
 type discordUser struct {
 	userID         string
-	currentGame    *discordgo.Game
+	currentGame    string
+	isPlaying      bool
 	startedPlaying time.Time
+}
+
+func (user *discordUser) Save(presence *discordgo.PresenceUpdate) {
+
 }

@@ -53,19 +53,33 @@ func onReady(session *discordgo.Session, ready *discordgo.Ready) {
 		}
 		for _, presence := range guildMemebers.Presences {
 			userID := presence.User.ID
-			currentGame := presence.Game
-			fmt.Println(currentGame)
+			var currentGame string
+			var isPlaying bool
+			if presence.Game != nil {
+				currentGame = presence.Game.Name
+				isPlaying = true
+			}
 			discordUsers[userID] = discordUser{
-				userID: userID,
-				//currentGame: currentGame,
+				userID:      userID,
+				currentGame: currentGame,
+				isPlaying:   isPlaying,
 			}
 		}
 	}
-	fmt.Println(discordUsers)
 }
 
-func presenceUpdate(session *discordgo.Session, msg *discordgo.PresenceUpdate) {
+func presenceUpdate(session *discordgo.Session, presence *discordgo.PresenceUpdate) {
+	game := presence.Game
+	user := discordUsers[presence.User.ID]
+	if game != nil { //Started Playing Game
+		if user.isPlaying != true { //Switching from other game
+			user.Save(presence)
+		} else { //Not currently playing game
 
+		}
+	} else { //Stopped Playing Game
+
+	}
 }
 
 func loadDiscordAvatar(url string) (image.Image, error) {
