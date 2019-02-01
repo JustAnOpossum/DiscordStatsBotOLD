@@ -50,6 +50,32 @@ func (datastore *datastore) findAllSort(collectionName, sort string, query bson.
 	data.DB("").C(collectionName).Find(query).Sort(sort).All(results)
 }
 
+func (datastore *datastore) insert(collectionName string, itemToIntert interface{}) {
+	data := datastore.session.Copy()
+	defer data.Close()
+
+	data.DB("").C(collectionName).Insert(itemToIntert)
+}
+
+func (datastore *datastore) update(collectionName string, query, itemToUpdate bson.M) {
+	data := datastore.session.Copy()
+	defer data.Close()
+
+	data.DB("").C(collectionName).Update(query, itemToUpdate)
+}
+
+func (datastore *datastore) itemExists(collectionName string, query bson.M) bool {
+	data := datastore.session.Copy()
+	defer data.Close()
+	var result stat
+
+	data.DB("").C(collectionName).Find(query).One(&result)
+	if result.ID == "" {
+		return false
+	}
+	return true
+}
+
 func (datastore *datastore) countHours(query bson.M) float64 {
 	data := datastore.session.Copy()
 	defer data.Close()

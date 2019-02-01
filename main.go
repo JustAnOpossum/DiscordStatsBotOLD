@@ -5,6 +5,7 @@ import (
 	"image"
 	_ "image/jpeg"
 	_ "image/png"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"os/signal"
@@ -17,8 +18,13 @@ import (
 )
 
 var db *datastore
+var out = ioutil.Discard
 
 func main() {
+	if os.Getenv("DEBUG") == "true" {
+		out = os.Stdout
+	}
+
 	session, dbStruct := setUpDB()
 	db = dbStruct
 	defer session.Close()
@@ -55,14 +61,20 @@ func onReady(session *discordgo.Session, ready *discordgo.Ready) {
 			userID := presence.User.ID
 			var currentGame string
 			var isPlaying bool
+			var startedPlaying time.Time
+			var currentTicker *time.Ticker
 			if presence.Game != nil {
 				currentGame = presence.Game.Name
 				isPlaying = true
+				startedPlaying = time.Now()
+				currentTicker = time.NewTicker(time.Second * 5)
 			}
-			discordUsers[userID] = discordUser{
-				userID:      userID,
-				currentGame: currentGame,
-				isPlaying:   isPlaying,
+			discordUsers[userID] = &discordUser{
+				userID:         userID,
+				currentGame:    currentGame,
+				startedPlaying: startedPlaying,
+				isPlaying:      isPlaying,
+				ticker:         currentTicker,
 			}
 		}
 	}
@@ -72,13 +84,20 @@ func presenceUpdate(session *discordgo.Session, presence *discordgo.PresenceUpda
 	game := presence.Game
 	user := discordUsers[presence.User.ID]
 	if game != nil { //Started Playing Game
-		if user.isPlaying != true { //Switching from other game
-			user.Save(presence)
+		fmt.Fprintln(out, "Started Playing Game "+game.Name)
+		if user.isPlaying == true { //Switching from other game
+			fmt.Fprintln(out, "Switching From Other Game "+user.currentGame)
+			user.save()
+			user.reset()
+			user.startTracking(presence)
 		} else { //Not currently playing game
-
+			fmt.Fprintln(out, "Not Playing Any Game")
+			user.startTracking(presence)
 		}
 	} else { //Stopped Playing Game
-
+		fmt.Fprintln(out, "Stopped Playing Game")
+		user.save()
+		user.reset()
 	}
 }
 
