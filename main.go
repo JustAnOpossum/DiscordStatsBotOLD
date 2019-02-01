@@ -1,11 +1,17 @@
 package main
 
 import (
+	"fmt"
 	"image"
 	_ "image/jpeg"
 	_ "image/png"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
+
+	"github.com/bwmarrin/discordgo"
 
 	"github.com/pkg/errors"
 )
@@ -13,13 +19,53 @@ import (
 var db *datastore
 
 func main() {
-	img, _ := loadDiscordAvatar("https://cdn.discordapp.com/avatars/461294052529143825/ccf81d3c7ee8cf6b794cfbd81f0c9889.png?size=512")
 	session, dbStruct := setUpDB()
 	db = dbStruct
 	defer session.Close()
-	// err := createImage(&img, "21", "30", "DasFox", "bar", "68553027849564160")
-	// fmt.Println(err)
-	createBotImage(&img, "Stats Bot", "900", "400", "1000", "5", "80")
+
+	discord, err := discordgo.New("Bot " + os.Getenv("TOKEN"))
+	if err != nil {
+		panic(err)
+	}
+
+	discord.AddHandler(onReady)
+	discord.AddHandler(presenceUpdate)
+
+	err = discord.Open()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Bot is started")
+	exitChan := make(chan os.Signal, 1)
+	signal.Notify(exitChan, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
+	<-exitChan
+
+	discord.Close()
+}
+
+func onReady(session *discordgo.Session, ready *discordgo.Ready) {
+	guilds := ready.Guilds
+	for _, guild := range guilds {
+		guildMemebers, err := session.Guild(guild.ID)
+		if err != nil {
+			panic(err)
+		}
+		for _, presence := range guildMemebers.Presences {
+			userID := presence.User.ID
+			currentGame := presence.Game
+			fmt.Println(currentGame)
+			discordUsers[userID] = discordUser{
+				userID: userID,
+				//currentGame: currentGame,
+			}
+		}
+	}
+	fmt.Println(discordUsers)
+}
+
+func presenceUpdate(session *discordgo.Session, msg *discordgo.PresenceUpdate) {
+
 }
 
 func loadDiscordAvatar(url string) (image.Image, error) {
