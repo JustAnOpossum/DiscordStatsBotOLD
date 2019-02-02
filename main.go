@@ -36,6 +36,8 @@ func main() {
 
 	discord.AddHandler(onReady)
 	discord.AddHandler(presenceUpdate)
+	discord.AddHandler(guildCreate)
+	discord.AddHandler(guildDeleted)
 
 	err = discord.Open()
 	if err != nil {
@@ -50,29 +52,90 @@ func main() {
 	discord.Close()
 }
 
+func addDiscordGuild(session *discordgo.Session, guildID string) {
+	var presenceMap = make(map[string]*discordgo.Presence)
+	guildInfo, err := session.Guild(guildID)
+	if err != nil {
+		panic(err)
+	}
+	for _, presence := range guildInfo.Presences {
+		userID := presence.User.ID
+		if _, ok := presenceMap[userID]; ok != true {
+			presenceMap[userID] = presence
+		}
+	}
+	for _, member := range guildInfo.Members {
+		if member.User.Bot == false {
+			userID := member.User.ID
+			presence := presenceMap[userID]
+			if _, ok := discordUsers[userID]; ok != true {
+				var currentGame string
+				var isPlaying bool
+				var startedPlaying time.Time
+				if presence.Game != nil {
+					currentGame = presence.Game.Name
+					isPlaying = true
+					startedPlaying = time.Now()
+				}
+				discordUsers[userID] = &discordUser{
+					userID:         userID,
+					mainGuildID:    member.GuildID,
+					currentGame:    currentGame,
+					startedPlaying: startedPlaying,
+					isPlaying:      isPlaying,
+				}
+			} else if ok := discordUsers[userID].otherGuilds[guildID]; ok == nil {
+				fmt.Println(discordUsers[userID].otherGuilds[guildID] == nil)
+				discordUsers[userID].otherGuilds = make(map[string]*discordgo.Guild)
+				guildToAdd, err := session.State.Guild(guildID)
+				if err != nil {
+					panic(err)
+				}
+				discordUsers[userID].otherGuilds[guildID] = guildToAdd
+			}
+		}
+	}
+}
+
+func removeDiscordUser(session *discordgo.Session, userID string) {
+	user := discordUsers[userID]
+	startingGuildID := user.mainGuildID
+	for guildID, guild := range user.otherGuilds {
+		for _, member := range guild.Members {
+			if member.User.ID == userID {
+				user.mainGuildID = guild.ID
+				delete(user.otherGuilds, guildID)
+				break
+			} else {
+				delete(user.otherGuilds, guildID)
+			}
+		}
+	}
+
+	if len(user.otherGuilds) == 0 && user.mainGuildID == startingGuildID {
+		if user.isPlaying == true {
+			user.save()
+		}
+		delete(discordUsers, userID)
+	}
+}
+
 func onReady(session *discordgo.Session, ready *discordgo.Ready) {
 	guilds := ready.Guilds
 	for _, guild := range guilds {
-		guildMemebers, err := session.Guild(guild.ID)
-		if err != nil {
-			panic(err)
-		}
-		for _, presence := range guildMemebers.Presences {
-			userID := presence.User.ID
-			var currentGame string
-			var isPlaying bool
-			var startedPlaying time.Time
-			if presence.Game != nil {
-				currentGame = presence.Game.Name
-				isPlaying = true
-				startedPlaying = time.Now()
-			}
-			discordUsers[userID] = &discordUser{
-				userID:         userID,
-				currentGame:    currentGame,
-				startedPlaying: startedPlaying,
-				isPlaying:      isPlaying,
-			}
+		addDiscordGuild(session, guild.ID)
+	}
+	fmt.Println(discordUsers["68553027849564160"])
+}
+
+func guildCreate(session *discordgo.Session, guild *discordgo.GuildCreate) {
+	addDiscordGuild(session, guild.ID)
+}
+
+func guildDeleted(session *discordgo.Session, deletedGuild *discordgo.GuildDelete) {
+	for _, user := range discordUsers {
+		if user.mainGuildID == deletedGuild.ID {
+			removeDiscordUser(session, user.userID)
 		}
 	}
 }
@@ -80,21 +143,28 @@ func onReady(session *discordgo.Session, ready *discordgo.Ready) {
 func presenceUpdate(session *discordgo.Session, presence *discordgo.PresenceUpdate) {
 	game := presence.Game
 	user := discordUsers[presence.User.ID]
-	if game != nil { //Started Playing Game
-		fmt.Fprintln(out, "Started Playing Game "+game.Name)
-		if user.isPlaying == true { //Switching from other game
-			fmt.Fprintln(out, "Switching From Other Game "+user.currentGame)
-			user.save()
-			user.reset()
-			user.startTracking(presence)
-		} else { //Not currently playing game
-			fmt.Fprintln(out, "Not Playing Any Game")
-			user.startTracking(presence)
+	if user.mainGuildID == presence.GuildID {
+		if game != nil { //Started Playing Game
+			if game.Name != user.currentGame {
+				fmt.Fprintln(out, "Started Playing Game "+game.Name)
+				if user.isPlaying == true { //Switching from other game
+					fmt.Fprintln(out, "Switching From Other Game "+user.currentGame)
+					user.save()
+					user.reset()
+					user.startTracking(presence)
+				} else { //Not currently playing game
+					fmt.Fprintln(out, "Not Playing Any Game")
+					user.startTracking(presence)
+				}
+			}
+		} else { //Stopped Playing Game
+			if user.currentGame != "" {
+				fmt.Fprintln(out, "Stopped Playing Game")
+				user.save()
+				user.reset()
+			}
+
 		}
-	} else { //Stopped Playing Game
-		fmt.Fprintln(out, "Stopped Playing Game")
-		user.save()
-		user.reset()
 	}
 }
 

@@ -13,6 +13,8 @@ var discordUsers = make(map[string]*discordUser)
 
 type discordUser struct {
 	userID         string
+	mainGuildID    string
+	otherGuilds    map[string]*discordgo.Guild
 	currentGame    string
 	isPlaying      bool
 	startedPlaying time.Time
