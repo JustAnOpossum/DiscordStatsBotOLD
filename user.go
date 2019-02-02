@@ -16,7 +16,6 @@ type discordUser struct {
 	currentGame    string
 	isPlaying      bool
 	startedPlaying time.Time
-	ticker         *time.Ticker
 }
 
 func (user *discordUser) save() {

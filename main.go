@@ -62,19 +62,16 @@ func onReady(session *discordgo.Session, ready *discordgo.Ready) {
 			var currentGame string
 			var isPlaying bool
 			var startedPlaying time.Time
-			var currentTicker *time.Ticker
 			if presence.Game != nil {
 				currentGame = presence.Game.Name
 				isPlaying = true
 				startedPlaying = time.Now()
-				currentTicker = time.NewTicker(time.Second * 5)
 			}
 			discordUsers[userID] = &discordUser{
 				userID:         userID,
 				currentGame:    currentGame,
 				startedPlaying: startedPlaying,
 				isPlaying:      isPlaying,
-				ticker:         currentTicker,
 			}
 		}
 	}
