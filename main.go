@@ -84,8 +84,7 @@ func addDiscordGuild(session *discordgo.Session, guildID string) {
 					startedPlaying: startedPlaying,
 					isPlaying:      isPlaying,
 				}
-			} else if ok := discordUsers[userID].otherGuilds[guildID]; ok == nil {
-				fmt.Println(discordUsers[userID].otherGuilds[guildID] == nil)
+			} else if ok := discordUsers[userID].otherGuilds[guildID]; ok == nil && guildID != discordUsers[userID].mainGuildID {
 				discordUsers[userID].otherGuilds = make(map[string]*discordgo.Guild)
 				guildToAdd, err := session.State.Guild(guildID)
 				if err != nil {
@@ -125,7 +124,6 @@ func onReady(session *discordgo.Session, ready *discordgo.Ready) {
 	for _, guild := range guilds {
 		addDiscordGuild(session, guild.ID)
 	}
-	fmt.Println(discordUsers["68553027849564160"])
 }
 
 func guildCreate(session *discordgo.Session, guild *discordgo.GuildCreate) {
