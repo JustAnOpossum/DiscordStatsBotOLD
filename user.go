@@ -20,24 +20,37 @@ type discordUser struct {
 	startedPlaying time.Time
 }
 
-func (user *discordUser) save() {
-	timeSince := time.Since(user.startedPlaying)
-	query := bson.M{"id": user.userID, "game": user.currentGame}
-	if db.itemExists("gamestats", query) == true { //Game already exsists
-		fmt.Fprintln(out, "user.save called stat exsist")
-		var currentHours stat
-		db.findOne("gamestats", query, &currentHours)
-		hoursSince := currentHours.Hours + timeSince.Hours()
-		db.update("gamestats", query, bson.M{"$set": bson.M{"hours": hoursSince}})
-	} else { //New stat
-		fmt.Fprintln(out, "user.save called new stat")
-		itemToInsert := stat{
-			ID:     user.userID,
-			Game:   user.currentGame,
-			Hours:  timeSince.Hours(),
-			Ignore: false,
+func updateOrSave(idToLookup string, user *discordUser) {
+	if user.isPlaying == true {
+		timeSince := time.Since(user.startedPlaying)
+		query := bson.M{"id": idToLookup, "game": user.currentGame}
+		if db.itemExists("gamestats", query) == true { //Game already exsists
+			fmt.Fprintln(out, "updateOrSave called stat exsist")
+			var currentHours stat
+			db.findOne("gamestats", query, &currentHours)
+			hoursSince := currentHours.Hours + timeSince.Hours()
+			db.update("gamestats", query, bson.M{"$set": bson.M{"hours": hoursSince}})
+		} else { //New stat
+			fmt.Fprintln(out, "updateOrSave called new stat")
+			itemToInsert := stat{
+				ID:     idToLookup,
+				Game:   user.currentGame,
+				Hours:  timeSince.Hours(),
+				Ignore: false,
+			}
+			db.insert("gamestats", itemToInsert)
 		}
-		db.insert("gamestats", itemToInsert)
+	}
+}
+
+func (user *discordUser) save() {
+	updateOrSave(user.userID, user)
+}
+
+func saveGuild(user *discordUser) {
+	updateOrSave(user.mainGuildID, user)
+	for _, item := range user.otherGuilds {
+		updateOrSave(item.ID, user)
 	}
 }
 

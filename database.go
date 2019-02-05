@@ -23,6 +23,8 @@ type icon struct {
 }
 
 type blacklist struct {
+	_id  bson.ObjectId
+	game string
 }
 
 type datastore struct {
@@ -68,7 +70,6 @@ func (datastore *datastore) itemExists(collectionName string, query bson.M) bool
 	data := datastore.session.Copy()
 	defer data.Close()
 	var result stat
-
 	data.DB("").C(collectionName).Find(query).One(&result)
 	if result.ID == "" {
 		return false

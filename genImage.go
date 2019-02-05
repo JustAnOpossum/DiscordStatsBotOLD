@@ -3,8 +3,12 @@ package main
 import (
 	"bytes"
 	"image"
+	_ "image/jpeg"
 	"image/png"
+	_ "image/png"
+	"net/http"
 	"path"
+	"time"
 
 	"github.com/generaltso/vibrant"
 	"github.com/globalsign/mgo/bson"
@@ -16,8 +20,6 @@ type returnedColors struct {
 	Main      vibrant.Color
 	Secondary vibrant.Color
 }
-
-const dataDir string = "/mnt/c/Users/camer/Desktop/GO/Data/stats"
 
 var pixelWidthBetween = [5]float64{0, 305, 205, 155, 125}
 var pixelWidthStart = [5]float64{620, 475, 420, 395, 380}
@@ -278,4 +280,19 @@ func createBotImage(profilePic *image.Image, name, totalStats, totalGames, total
 	err = drawBotText(mainImg, name, totalStats, totalGames, totalImgGenerated, totalServers, totalUsers, colors)
 	mainImg.WriteImage("test.png")
 	return err
+}
+
+func loadDiscordAvatar(url string) (image.Image, error) {
+	httpClient := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	res, err := httpClient.Get(url)
+	if err != nil {
+		return nil, errors.Wrap(err, "Making Discord HTTP Avatar Request")
+	}
+	decodedImg, _, err := image.Decode(res.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "Deconding Image")
+	}
+	return decodedImg, nil
 }

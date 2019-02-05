@@ -2,23 +2,21 @@ package main
 
 import (
 	"fmt"
-	"image"
-	_ "image/jpeg"
-	_ "image/png"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
-
-	"github.com/pkg/errors"
 )
 
 var db *datastore
 var out = ioutil.Discard
+
+//const dataDir string = "/mnt/c/Users/camer/Desktop/GO/Data/stats"
+const dataDir string = "/Users/dasfox/Desktop/Go/data/stats"
+const gameImgDir string = dataDir + "/Images/Game"
 
 func main() {
 	if os.Getenv("DEBUG") == "true" {
@@ -38,6 +36,8 @@ func main() {
 	discord.AddHandler(presenceUpdate)
 	discord.AddHandler(guildCreate)
 	discord.AddHandler(guildDeleted)
+	discord.AddHandler(memberDeleted)
+	discord.AddHandler(memberAdded)
 
 	err = discord.Open()
 	if err != nil {
@@ -96,16 +96,37 @@ func addDiscordGuild(session *discordgo.Session, guildID string) {
 	}
 }
 
+func addDiscordUser(session *discordgo.Session, newUserID, newGuildID string, isBot bool) {
+	if isBot == false {
+		if _, ok := discordUsers[newUserID]; ok == false {
+			discordUsers[newUserID] = &discordUser{
+				userID:      newUserID,
+				mainGuildID: newGuildID,
+				isPlaying:   false,
+			}
+		} else if _, ok := discordUsers[newUserID].otherGuilds[newGuildID]; ok == false {
+			discordUsers[newUserID].otherGuilds = make(map[string]*discordgo.Guild)
+			guildToAdd, err := session.State.Guild(newGuildID)
+			if err != nil {
+				panic(err)
+			}
+			discordUsers[newUserID].otherGuilds[newGuildID] = guildToAdd
+		}
+	}
+}
+
 func removeDiscordUser(session *discordgo.Session, userID string) {
 	user := discordUsers[userID]
 	startingGuildID := user.mainGuildID
 	for guildID, guild := range user.otherGuilds {
 		for _, member := range guild.Members {
 			if member.User.ID == userID {
+				updateOrSave(guild.ID, user)
 				user.mainGuildID = guild.ID
 				delete(user.otherGuilds, guildID)
 				break
 			} else {
+				updateOrSave(guild.ID, user)
 				delete(user.otherGuilds, guildID)
 			}
 		}
@@ -138,45 +159,50 @@ func guildDeleted(session *discordgo.Session, deletedGuild *discordgo.GuildDelet
 	}
 }
 
-func presenceUpdate(session *discordgo.Session, presence *discordgo.PresenceUpdate) {
-	game := presence.Game
-	user := discordUsers[presence.User.ID]
-	if user.mainGuildID == presence.GuildID {
-		if game != nil { //Started Playing Game
-			if game.Name != user.currentGame {
-				fmt.Fprintln(out, "Started Playing Game "+game.Name)
-				if user.isPlaying == true { //Switching from other game
-					fmt.Fprintln(out, "Switching From Other Game "+user.currentGame)
-					user.save()
-					user.reset()
-					user.startTracking(presence)
-				} else { //Not currently playing game
-					fmt.Fprintln(out, "Not Playing Any Game")
-					user.startTracking(presence)
-				}
-			}
-		} else { //Stopped Playing Game
-			if user.currentGame != "" {
-				fmt.Fprintln(out, "Stopped Playing Game")
-				user.save()
-				user.reset()
-			}
-
-		}
+func memberDeleted(session *discordgo.Session, deletedMember *discordgo.GuildMemberRemove) {
+	if _, ok := discordUsers[deletedMember.User.ID]; ok == true {
+		removeDiscordUser(session, deletedMember.User.ID)
 	}
 }
 
-func loadDiscordAvatar(url string) (image.Image, error) {
-	httpClient := &http.Client{
-		Timeout: 10 * time.Second,
+func memberAdded(session *discordgo.Session, addedMember *discordgo.GuildMemberAdd) {
+	addDiscordUser(session, addedMember.User.ID, addedMember.GuildID, addedMember.User.Bot)
+}
+
+func presenceUpdate(session *discordgo.Session, presence *discordgo.PresenceUpdate) {
+	if _, ok := discordUsers[presence.User.ID]; ok == true {
+		game := presence.Game
+		user := discordUsers[presence.User.ID]
+		if user.mainGuildID == presence.GuildID {
+			// if db.itemExists("gameicons", bson.M{"game": game.Name}) == false && db.itemExists("iconblacklists", bson.M{"game": game.Name}) == false {
+			// 	getGameImg(game.Name)
+			// }
+			// if db.itemExists("iconblacklists", bson.M{"game": game.Name}) == true {
+			// 	return
+			// }
+			if game != nil { //Started Playing Game
+				if game.Name != user.currentGame {
+					fmt.Fprintln(out, "Started Playing Game "+game.Name)
+					if user.isPlaying == true { //Switching from other game
+						fmt.Fprintln(out, "Switching From Other Game "+user.currentGame)
+						user.save()
+						saveGuild(user)
+						user.reset()
+						user.startTracking(presence)
+					} else { //Not currently playing game
+						fmt.Fprintln(out, "Not Playing Any Game")
+						user.startTracking(presence)
+					}
+				}
+			} else { //Stopped Playing Game
+				if user.currentGame != "" {
+					fmt.Fprintln(out, "Stopped Playing Game")
+					user.save()
+					saveGuild(user)
+					user.reset()
+				}
+
+			}
+		}
 	}
-	res, err := httpClient.Get(url)
-	if err != nil {
-		return nil, errors.Wrap(err, "Making Discord HTTP Avatar Request")
-	}
-	decodedImg, _, err := image.Decode(res.Body)
-	if err != nil {
-		return nil, errors.Wrap(err, "Deconding Image")
-	}
-	return decodedImg, nil
 }
