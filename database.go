@@ -66,12 +66,19 @@ func (datastore *datastore) update(collectionName string, query, itemToUpdate bs
 	data.DB("").C(collectionName).Update(query, itemToUpdate)
 }
 
+func (datastore *datastore) removeAll(collectionName string, query bson.M) {
+	data := datastore.session.Copy()
+	defer data.Close()
+
+	data.DB("").C(collectionName).RemoveAll(query)
+}
+
 func (datastore *datastore) itemExists(collectionName string, query bson.M) bool {
 	data := datastore.session.Copy()
 	defer data.Close()
-	var result stat
-	data.DB("").C(collectionName).Find(query).One(&result)
-	if result.ID == "" {
+	var result []interface{}
+	data.DB("").C(collectionName).Find(query).All(&result)
+	if len(result) == 0 {
 		return false
 	}
 	return true

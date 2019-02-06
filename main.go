@@ -5,10 +5,12 @@ import (
 	"io/ioutil"
 	"os"
 	"os/signal"
+	"regexp"
 	"syscall"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/globalsign/mgo/bson"
 )
 
 var db *datastore
@@ -38,6 +40,7 @@ func main() {
 	discord.AddHandler(guildDeleted)
 	discord.AddHandler(memberDeleted)
 	discord.AddHandler(memberAdded)
+	discord.AddHandler(newMessage)
 
 	err = discord.Open()
 	if err != nil {
@@ -169,18 +172,43 @@ func memberAdded(session *discordgo.Session, addedMember *discordgo.GuildMemberA
 	addDiscordUser(session, addedMember.User.ID, addedMember.GuildID, addedMember.User.Bot)
 }
 
+func newMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
+	botUser, _ := session.User("@me")
+	mentions := msg.Mentions
+	switch len(mentions) {
+	case 1:
+		if mentions[0].ID == botUser.ID {
+			isGraphTypeGuild, _ := regexp.MatchString("guild", msg.Content)
+			if isGraphTypeGuild == true {
+				fmt.Println("Graph type is guild")
+				break
+				//guild, _ := session.State.Guild(msg.GuildID)
+			}
+			fmt.Println("Only bot mentioned")
+		}
+		break
+	case 2:
+		meintonedUser := mentions[0]
+		fmt.Println(meintonedUser.String(), "Is mentioned")
+		break
+	}
+}
+
 func presenceUpdate(session *discordgo.Session, presence *discordgo.PresenceUpdate) {
 	if _, ok := discordUsers[presence.User.ID]; ok == true {
 		game := presence.Game
 		user := discordUsers[presence.User.ID]
 		if user.mainGuildID == presence.GuildID {
-			// if db.itemExists("gameicons", bson.M{"game": game.Name}) == false && db.itemExists("iconblacklists", bson.M{"game": game.Name}) == false {
-			// 	getGameImg(game.Name)
-			// }
-			// if db.itemExists("iconblacklists", bson.M{"game": game.Name}) == true {
-			// 	return
-			// }
 			if game != nil { //Started Playing Game
+				if db.itemExists("gameicons", bson.M{"game": game.Name}) == false && db.itemExists("iconblacklists", bson.M{"game": game.Name}) == false {
+					getGameImg(game.Name)
+				}
+				if db.itemExists("iconblacklists", bson.M{"game": game.Name}) == true {
+					if db.itemExists("gamestats", bson.M{"game": game.Name}) == true {
+						db.removeAll("gamestats", bson.M{"game": game.Name})
+					}
+					return
+				}
 				if game.Name != user.currentGame {
 					fmt.Fprintln(out, "Started Playing Game "+game.Name)
 					if user.isPlaying == true { //Switching from other game
