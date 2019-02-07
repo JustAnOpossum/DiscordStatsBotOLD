@@ -24,6 +24,23 @@ type returnedColors struct {
 var pixelWidthBetween = [5]float64{0, 305, 205, 155, 125}
 var pixelWidthStart = [5]float64{620, 475, 420, 395, 380}
 
+func createCircle(width, height uint, fillColor, bgColor string) *imagick.MagickWand {
+	circleImg := imagick.NewMagickWand()
+	pw := imagick.NewPixelWand()
+	circleDraw := imagick.NewDrawingWand()
+	defer pw.Destroy()
+	defer circleDraw.Destroy()
+	pw.SetColor(bgColor)
+	circleImg.NewImage(height, width, pw)
+
+	pw.SetColor(fillColor)
+	circleDraw.SetFillColor(pw)
+	circleDraw.Circle(float64(height/2), float64(width/2), float64(height/2), 0)
+	circleImg.DrawImage(circleDraw)
+
+	return circleImg
+}
+
 func getColorPallete(img *image.Image) (returnedColors, error) {
 	pallete, err := vibrant.NewPaletteFromImage(*img)
 	if err != nil {
@@ -76,19 +93,8 @@ func addCircleIcon(img *image.Image, base *imagick.MagickWand) error {
 	height := profilePic.GetImageHeight()
 	width := profilePic.GetImageWidth()
 
-	circleMask := imagick.NewMagickWand()
-	pw := imagick.NewPixelWand()
-	circleDraw := imagick.NewDrawingWand()
+	circleMask := createCircle(width, height, "white", "black")
 	defer circleMask.Destroy()
-	defer pw.Destroy()
-	defer circleDraw.Destroy()
-	pw.SetColor("black")
-	circleMask.NewImage(height, width, pw)
-
-	pw.SetColor("white")
-	circleDraw.SetFillColor(pw)
-	circleDraw.Circle(float64(height/2), float64(width/2), float64(height/2), 0)
-	circleMask.DrawImage(circleDraw)
 
 	circleMask.SetImageMatte(false)
 	profilePic.SetImageMatte(false)

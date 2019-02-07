@@ -47,6 +47,9 @@ func main() {
 		panic(err)
 	}
 
+	img, _ := loadDiscordAvatar("https://nerdfox.me/static/img/art/tT1wEywmg.png")
+	createImage(&img, "22", "22", "DasFox", "bar", "68553027849564160")
+
 	fmt.Println("Bot is started")
 	exitChan := make(chan os.Signal, 1)
 	signal.Notify(exitChan, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
@@ -120,6 +123,8 @@ func addDiscordUser(session *discordgo.Session, newUserID, newGuildID string, is
 
 func removeDiscordUser(session *discordgo.Session, userID string) {
 	user := discordUsers[userID]
+	user.mu.Lock()
+	defer user.mu.Unlock()
 	startingGuildID := user.mainGuildID
 	for guildID, guild := range user.otherGuilds {
 		for _, member := range guild.Members {
@@ -199,6 +204,8 @@ func presenceUpdate(session *discordgo.Session, presence *discordgo.PresenceUpda
 		game := presence.Game
 		user := discordUsers[presence.User.ID]
 		if user.mainGuildID == presence.GuildID {
+			user.mu.Lock()
+			defer user.mu.Unlock()
 			if game != nil { //Started Playing Game
 				if db.itemExists("gameicons", bson.M{"game": game.Name}) == false && db.itemExists("iconblacklists", bson.M{"game": game.Name}) == false {
 					getGameImg(game.Name)

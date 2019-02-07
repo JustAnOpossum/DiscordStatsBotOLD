@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -18,6 +19,7 @@ type discordUser struct {
 	currentGame    string
 	isPlaying      bool
 	startedPlaying time.Time
+	mu             sync.Mutex
 }
 
 func updateOrSave(idToLookup string, user *discordUser) {
