@@ -29,9 +29,9 @@ type blacklist struct {
 
 type setting struct {
 	_id             bson.ObjectId
-	id              string
-	graphType       string
-	mentionForStats bool
+	ID              string
+	GraphType       string
+	MentionForStats bool
 }
 
 type datastore struct {

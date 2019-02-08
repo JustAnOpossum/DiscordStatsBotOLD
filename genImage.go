@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/generaltso/vibrant"
@@ -288,7 +289,7 @@ func createBotImage(profilePic *image.Image, name, totalStats, totalGames, total
 	return err
 }
 
-func loadDiscordAvatar(url string) (image.Image, error) {
+func loadDiscordAvatar(url string) (*image.Image, error) {
 	httpClient := &http.Client{
 		Timeout: 10 * time.Second,
 	}
@@ -300,5 +301,38 @@ func loadDiscordAvatar(url string) (image.Image, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Deconding Image")
 	}
-	return decodedImg, nil
+	return &decodedImg, nil
+}
+
+func createGuildAvatar(guildName string) (*image.Image, error) {
+	var guildNameDiscordString string
+	guildNameSplit := strings.Split(guildName, " ")
+	for _, item := range guildNameSplit {
+		guildNameDiscordString += string([]rune(item)[0])
+	}
+
+	guildIcon := imagick.NewMagickWand()
+	pw := imagick.NewPixelWand()
+	textWand := imagick.NewDrawingWand()
+	defer guildIcon.Destroy()
+	defer pw.Destroy()
+	defer textWand.Destroy()
+
+	pw.SetColor("#2F3136")
+	guildIcon.NewImage(512, 512, pw)
+
+	pw.SetColor("#FFFFFF")
+	textWand.SetFillColor(pw)
+	textWand.SetGravity(imagick.GRAVITY_CENTER)
+	textWand.SetFontSize(70)
+
+	textWand.Annotation(0, 0, guildNameDiscordString)
+
+	guildIcon.DrawImage(textWand)
+
+	guildIcon.SetImageFormat("PNG")
+	imgReader := bytes.NewReader(guildIcon.GetImageBlob())
+	decodedImg, _, err := image.Decode(imgReader)
+
+	return &decodedImg, errors.Wrap(err, "Decoding img")
 }
