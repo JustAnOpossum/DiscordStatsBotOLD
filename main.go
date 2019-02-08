@@ -176,6 +176,9 @@ func memberAdded(session *discordgo.Session, addedMember *discordgo.GuildMemberA
 }
 
 func newMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
+	if msg.GuildID == "" {
+		handlePrivateMessage(session, msg)
+	}
 	botUser, _ := session.User("@me")
 	mentions := msg.Mentions
 	switch len(mentions) {
@@ -215,6 +218,65 @@ func newMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
 	case 2:
 		meintonedUser := mentions[0]
 		fmt.Println(meintonedUser.String())
+		break
+	}
+}
+
+func handlePrivateMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
+	createMainMenu := func(lengthIgnoredStats, graphType string, mentionSetting bool) *discordgo.MessageEmbed {
+		var mentionSettingStr = "disabled"
+		if mentionSetting == true {
+			mentionSettingStr = "enabled"
+		}
+		return &discordgo.MessageEmbed{
+			Fields: []*discordgo.MessageEmbedField{
+				&discordgo.MessageEmbedField{
+					Name:  "**" + msg.Author.Username + " Settings**",
+					Value: "Below are the options that you can change, if you want to change an option send me a message with the setting you want to change.",
+				},
+				&discordgo.MessageEmbedField{
+					Name:  "graph (" + graphType + ")",
+					Value: "This setting let's you change your graph type.",
+				},
+				&discordgo.MessageEmbedField{
+					Name:  "ignore ",
+					Value: "This setting let's you hide games from your stats.",
+				},
+				&discordgo.MessageEmbedField{
+					Name:  "show ",
+					Value: "This setting let's you show games from your stats.",
+				},
+				&discordgo.MessageEmbedField{
+					Name:  "mention (" + mentionSettingStr + ")",
+					Value: "This lets you disable other people mentioning you to get your stats.",
+				},
+				&discordgo.MessageEmbedField{
+					Name:  "show ignore (" + lengthIgnoredStats + " currently ignored)",
+					Value: "This shows you your ignored games.",
+				},
+			},
+		}
+	}
+	switch msg.Content {
+	case "help":
+		var ignoredStats []stat
+		var userSettings setting
+		db.findAll("gamestats", bson.M{"id": msg.Author.ID, "ignore": true}, &ignoredStats)
+		db.findOne("settings", bson.M{"id": msg.Author.ID}, &userSettings)
+		session.ChannelMessageSendEmbed(msg.ChannelID, createMainMenu(strconv.Itoa(len(ignoredStats)), userSettings.graphType, userSettings.mentionForStats))
+		break
+	case "graph":
+
+		break
+	case "ignore":
+		break
+	case "show":
+		break
+	case "mention":
+		break
+	case "show ignore":
+		break
+	default:
 		break
 	}
 }

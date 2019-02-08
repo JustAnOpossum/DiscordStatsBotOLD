@@ -27,6 +27,13 @@ type blacklist struct {
 	game string
 }
 
+type setting struct {
+	_id             bson.ObjectId
+	id              string
+	graphType       string
+	mentionForStats bool
+}
+
 type datastore struct {
 	session *mgo.Session
 }
@@ -131,6 +138,9 @@ func setUpDB() (*mgo.Session, *datastore) {
 		panic(err)
 	}
 	if err = statbotSession.DB("").C("iconblacklists").EnsureIndex(genIndex([]string{"game"})); err != nil {
+		panic(err)
+	}
+	if err = statbotSession.DB("").C("settings").EnsureIndex(genIndex([]string{"id"})); err != nil {
 		panic(err)
 	}
 	return session, &datastore{session: session}
