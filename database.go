@@ -97,6 +97,15 @@ func (datastore *datastore) countHours(query bson.M) float64 {
 	return math.Round(totalHours)
 }
 
+func (datastore *datastore) countGames(query bson.M) int {
+	data := datastore.session.Copy()
+	defer data.Close()
+	var result []string
+
+	data.DB("").C("gamestats").Find(query).Distinct("game", &result)
+	return len(result)
+}
+
 func setUpDB() (*mgo.Session, *datastore) {
 	session, err := mgo.Dial("localhost/statbot")
 	if err != nil {

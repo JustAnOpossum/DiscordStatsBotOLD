@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"regexp"
 	"time"
 
 	"github.com/pkg/errors"
@@ -17,14 +18,51 @@ import (
 )
 
 type googleJSON struct {
-	Items []struct {
-		Link string `json:"link"`
-		Mime string `json:"mime"`
-	} `json:"items"`
+	Items []imgItem `json:"items"`
+}
+
+type imgItem struct {
+	Link string `json:"link"`
+	Mime string `json:"mime"`
 }
 
 var apiKey = os.Getenv("CSETOKEN")
 var cseID = os.Getenv("CSEID")
+
+func processImg(img imgItem, imgBuffer *bytes.Buffer, gameName string) bool {
+	fmt.Fprintln(out, "Got good image")
+	shortID, _ := shortid.Generate()
+	var ext string
+	if img.Mime == "image/jpeg" {
+		ext = ".jpg"
+	}
+	if img.Mime == "image/png" {
+		ext = ".png"
+	}
+	var fileName = shortID + ext
+	err := ioutil.WriteFile(path.Join(gameImgDir, fileName), imgBuffer.Bytes(), 0644)
+	fmt.Fprintln(out, "Wrote File")
+	imgDecode, _, err := image.Decode(imgBuffer)
+	fmt.Fprintln(out, "Decoded Img")
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+	imgColors, err := getColorPallete(&imgDecode)
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+	fmt.Fprintln(out, "Got colors")
+	itemToInsert := icon{
+		Game:     gameName,
+		Location: "Images/Game/" + fileName,
+		Color:    imgColors.Main.RGBHex(),
+	}
+	db.insert("gameicons", itemToInsert)
+	fmt.Fprintln(out, "Inserted IMG")
+	return true
+}
 
 func getGameImg(gameName string) bool {
 	imgArr, err := getImagesFromGoogle(gameName)
@@ -32,40 +70,23 @@ func getGameImg(gameName string) bool {
 		fmt.Println(errors.Wrap(err, "Error Getting Google Images"))
 	}
 	for _, img := range imgArr.Items {
-		if img.Mime == "image/jpeg" || img.Mime == "image/png" {
+		if img.Mime == "image/png" {
 			imgBuffer, err := downloadImg(img.Link)
-			if err == nil {
-				fmt.Fprintln(out, "Got good image")
-				shortID, _ := shortid.Generate()
-				var ext string
-				if img.Mime == "image/jpeg" {
-					ext = ".jpg"
-				}
-				if img.Mime == "image/png" {
-					ext = ".png"
-				}
-				var fileName = shortID + ext
-				err = ioutil.WriteFile(path.Join(gameImgDir, fileName), imgBuffer.Bytes(), 0644)
-				fmt.Fprintln(out, "Wrote File")
-				imgDecode, _, err := image.Decode(imgBuffer)
-				fmt.Fprintln(out, "Decoded Img")
-				if err != nil {
-					fmt.Println(err)
-					continue
-				}
-				imgColors, err := getColorPallete(&imgDecode)
-				if err != nil {
-					fmt.Println(err)
-					continue
-				}
-				fmt.Fprintln(out, "Got colors")
-				itemToInsert := icon{
-					Game:     gameName,
-					Location: "Images/Game/" + fileName,
-					Color:    imgColors.Main.RGBHex(),
-				}
-				db.insert("gameicons", itemToInsert)
-				fmt.Fprintln(out, "Inserted IMG")
+			isValidImgString := http.DetectContentType(imgBuffer.Bytes())
+			isValidImg, _ := regexp.MatchString("image/png", isValidImgString)
+			if err == nil && isValidImg == true {
+				processImg(img, imgBuffer, gameName)
+				return true
+			}
+		}
+	}
+	for _, img := range imgArr.Items {
+		if img.Mime == "image/jpeg" {
+			imgBuffer, err := downloadImg(img.Link)
+			isValidImgString := http.DetectContentType(imgBuffer.Bytes())
+			isValidImg, _ := regexp.MatchString("image/png", isValidImgString)
+			if err == nil && isValidImg == true {
+				processImg(img, imgBuffer, gameName)
 				return true
 			}
 		}
@@ -98,7 +119,7 @@ func downloadImg(URL string) (*bytes.Buffer, error) {
 }
 
 func getImagesFromGoogle(query string) (googleJSON, error) {
-	query = query + "logo transparent"
+	query = query + " icon"
 	imgClient := &http.Client{
 		Timeout: time.Second * 10,
 	}

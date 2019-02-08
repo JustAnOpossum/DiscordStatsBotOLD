@@ -7,8 +7,11 @@ import (
 	"image/png"
 	_ "image/png"
 	"net/http"
+	"os"
 	"path"
 	"time"
+
+	"github.com/teris-io/shortid"
 
 	"github.com/generaltso/vibrant"
 	"github.com/globalsign/mgo/bson"
@@ -23,23 +26,6 @@ type returnedColors struct {
 
 var pixelWidthBetween = [5]float64{0, 305, 205, 155, 125}
 var pixelWidthStart = [5]float64{620, 475, 420, 395, 380}
-
-func createCircle(width, height uint, fillColor, bgColor string) *imagick.MagickWand {
-	circleImg := imagick.NewMagickWand()
-	pw := imagick.NewPixelWand()
-	circleDraw := imagick.NewDrawingWand()
-	defer pw.Destroy()
-	defer circleDraw.Destroy()
-	pw.SetColor(bgColor)
-	circleImg.NewImage(height, width, pw)
-
-	pw.SetColor(fillColor)
-	circleDraw.SetFillColor(pw)
-	circleDraw.Circle(float64(height/2), float64(width/2), float64(height/2), 0)
-	circleImg.DrawImage(circleDraw)
-
-	return circleImg
-}
 
 func getColorPallete(img *image.Image) (returnedColors, error) {
 	pallete, err := vibrant.NewPaletteFromImage(*img)
@@ -93,8 +79,19 @@ func addCircleIcon(img *image.Image, base *imagick.MagickWand) error {
 	height := profilePic.GetImageHeight()
 	width := profilePic.GetImageWidth()
 
-	circleMask := createCircle(width, height, "white", "black")
+	circleMask := imagick.NewMagickWand()
+	pw := imagick.NewPixelWand()
+	circleDraw := imagick.NewDrawingWand()
+	defer pw.Destroy()
 	defer circleMask.Destroy()
+	defer circleMask.Destroy()
+	pw.SetColor("black")
+	circleMask.NewImage(height, width, pw)
+
+	pw.SetColor("white")
+	circleDraw.SetFillColor(pw)
+	circleDraw.Circle(float64(height/2), float64(width/2), float64(height/2), 0)
+	circleMask.DrawImage(circleDraw)
 
 	circleMask.SetImageMatte(false)
 	profilePic.SetImageMatte(false)
@@ -247,8 +244,12 @@ func addGraph(base *imagick.MagickWand, graphType string, profilePic *image.Imag
 	return nil
 }
 
-func createImage(img *image.Image, hoursPlayed, gamesPlayed, name string, graphType string, userID string) error {
+func createImage(img *image.Image, hoursPlayed, gamesPlayed, name string, graphType string, userID string) (string, error) {
 	var err error
+	tempFileDir := os.Getenv("TMPDIR")
+	if tempFileDir == "" {
+		tempFileDir = "/tmp"
+	}
 	imagick.Initialize()
 	defer imagick.Terminate()
 	mainImg := imagick.NewMagickWand()
@@ -264,8 +265,11 @@ func createImage(img *image.Image, hoursPlayed, gamesPlayed, name string, graphT
 	err = addCircleIcon(img, mainImg)
 	err = drawText(mainImg, name, hoursPlayed, gamesPlayed, colors)
 	err = addGraph(mainImg, graphType, img, colors, userID)
-	mainImg.WriteImage("test.png")
-	return err
+
+	tempFileName, _ := shortid.Generate()
+	tempFilePath := path.Join(tempFileDir, tempFileName)
+	mainImg.WriteImage(tempFilePath)
+	return tempFilePath, err
 }
 
 func createBotImage(profilePic *image.Image, name, totalStats, totalGames, totalImgGenerated, totalServers, totalUsers string) error {
@@ -284,7 +288,6 @@ func createBotImage(profilePic *image.Image, name, totalStats, totalGames, total
 	err = drawCircles(mainImg, colors, "botMask.png")
 	err = addCircleIcon(profilePic, mainImg)
 	err = drawBotText(mainImg, name, totalStats, totalGames, totalImgGenerated, totalServers, totalUsers, colors)
-	mainImg.WriteImage("test.png")
 	return err
 }
 

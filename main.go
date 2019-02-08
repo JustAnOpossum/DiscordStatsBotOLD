@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"regexp"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -46,9 +47,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
-	img, _ := loadDiscordAvatar("https://nerdfox.me/static/img/art/tT1wEywmg.png")
-	createImage(&img, "22", "22", "DasFox", "bar", "68553027849564160")
 
 	fmt.Println("Bot is started")
 	exitChan := make(chan os.Signal, 1)
@@ -189,12 +187,24 @@ func newMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
 				break
 				//guild, _ := session.State.Guild(msg.GuildID)
 			}
-			fmt.Println("Only bot mentioned")
+			var userStats []stat
+			msgUser := msg.Author
+			db.findAll("gamestats", bson.M{"id": msgUser.ID}, &userStats)
+			avatarImg, err := loadDiscordAvatar(msgUser.AvatarURL("512"))
+			if err != nil {
+				fmt.Println("An error", err)
+			}
+			totalHours := db.countHours(bson.M{"id": msgUser.ID})
+			totalGames := db.countGames(bson.M{"id": msgUser.ID})
+			username := msgUser.Username
+			userID := msgUser.ID
+			imgURL, _ := createImage(&avatarImg, fmt.Sprint(totalHours), strconv.Itoa(totalGames), username, "bar", userID)
+			fmt.Println(imgURL)
 		}
 		break
 	case 2:
 		meintonedUser := mentions[0]
-		fmt.Println(meintonedUser.String(), "Is mentioned")
+		fmt.Println(meintonedUser.String())
 		break
 	}
 }

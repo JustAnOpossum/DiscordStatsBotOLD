@@ -2,92 +2,160 @@
 
 
 [[projects]]
+  digest = "1:fc4f149402c1fa7258290c3f91b0bfbc709763f3d3899609a2e4a0163dec65c6"
   name = "github.com/bwmarrin/discordgo"
   packages = ["."]
+  pruneopts = "UT"
   revision = "8325a6bf6dd6c91ed4040a1617b07287b8fb0eba"
   version = "v0.19.0"
 
 [[projects]]
   branch = "master"
+  digest = "1:76c96b727b19646645c47ef8dcf42fe0ab7865d451a0973a3a89e69642ce368c"
   name = "github.com/generaltso/sadbox"
   packages = ["color"]
+  pruneopts = "UT"
   revision = "27893f92b8ce8ff6fe913af4422216027fe5a4a7"
 
 [[projects]]
+  digest = "1:188b8fb3e9ea3a3dab7f8a8a1a52eec58d4d0774f83f2064073d01c73d8279d2"
   name = "github.com/generaltso/vibrant"
   packages = ["."]
+  pruneopts = "UT"
   revision = "563623b97aee86e824ca3d720304fdeda5d92b9c"
   version = "v1.1"
 
 [[projects]]
   branch = "master"
+  digest = "1:78102ee4d536347316bc42e818340cc50902e45dbd7fdd524c5a1fc0cb07b588"
   name = "github.com/globalsign/mgo"
-  packages = [".","bson","internal/json","internal/sasl","internal/scram"]
+  packages = [
+    ".",
+    "bson",
+    "internal/json",
+    "internal/sasl",
+    "internal/scram",
+  ]
+  pruneopts = "UT"
   revision = "eeefdecb41b842af6dc652aaea4026e8403e62df"
 
 [[projects]]
   branch = "master"
+  digest = "1:62c57507df491b657e9ae2645f30958d9964c8eeb380600469eedc951ebb3a0e"
   name = "github.com/golang/freetype"
-  packages = ["raster","truetype"]
+  packages = [
+    "raster",
+    "truetype",
+  ]
+  pruneopts = "UT"
   revision = "e2365dfdc4a05e4b8299a783240d4a7d5a65d4e4"
 
 [[projects]]
+  digest = "1:7b5c6e2eeaa9ae5907c391a91c132abfd5c9e8a784a341b5625e750c67e6825d"
   name = "github.com/gorilla/websocket"
   packages = ["."]
+  pruneopts = "UT"
   revision = "66b9c49e59c6c48f0ffce28c2d8b8a5678502c6d"
   version = "v1.4.0"
 
 [[projects]]
   branch = "master"
+  digest = "1:34534b73e925d20cc72cf202f8b482fdcbe3a1b113e19375f31aadabd0f0f97d"
   name = "github.com/nfnt/resize"
   packages = ["."]
+  pruneopts = "UT"
   revision = "83c6a9932646f83e3267f353373d47347b6036b2"
 
 [[projects]]
+  digest = "1:cf31692c14422fa27c83a05292eb5cbe0fb2775972e8f1f8446a71549bd8980b"
   name = "github.com/pkg/errors"
   packages = ["."]
+  pruneopts = "UT"
   revision = "ba968bfe8b2f7e042a574c888954fccecfa385b4"
   version = "v0.8.1"
 
 [[projects]]
+  digest = "1:c08f5d8cc28ed4dccb098121d5f1f19f708bf04e3bbd4b772ce6461de6ef1ca2"
   name = "github.com/teris-io/shortid"
   packages = ["."]
+  pruneopts = "UT"
   revision = "6c56cef5189ca1b3d5ef01dc07f4d611dfc0bb33"
   version = "v1.0"
 
 [[projects]]
+  digest = "1:cf762a0ce01d48d8ac03f717aa41f66b655abea67c616d89994ce091a2cc6831"
   name = "github.com/wcharczuk/go-chart"
-  packages = [".","drawing","matrix","roboto","seq","util"]
+  packages = [
+    ".",
+    "drawing",
+    "matrix",
+    "roboto",
+    "seq",
+    "util",
+  ]
+  pruneopts = "UT"
   revision = "7c3982fe3d8ab0c9eea9ab5d2aced51e45d447bc"
   version = "v2.0.1"
 
 [[projects]]
   branch = "master"
+  digest = "1:a68068595227881a09dd5961976ddf705c8eea822dcd1c7b57bbb0067335ad32"
   name = "golang.org/x/crypto"
-  packages = ["internal/subtle","nacl/secretbox","poly1305","salsa20/salsa"]
+  packages = [
+    "internal/subtle",
+    "nacl/secretbox",
+    "poly1305",
+    "salsa20/salsa",
+  ]
+  pruneopts = "UT"
   revision = "b8fe1690c61389d7d2a8074a507d1d40c5d30448"
 
 [[projects]]
   branch = "master"
+  digest = "1:8aa52c7f7476f9ce660f5db479eb0e19681b58783442f33459954757fc6732fe"
   name = "golang.org/x/image"
-  packages = ["draw","font","math/f64","math/fixed"]
+  packages = [
+    "draw",
+    "font",
+    "math/f64",
+    "math/fixed",
+  ]
+  pruneopts = "UT"
   revision = "183bebdce1b249c42a7cf6772817e8c2e873b966"
 
 [[projects]]
+  digest = "1:4353ae1b808b8613b5cca55807a399839d0e6c4a31c3cc3ee96efe2b64cfd788"
   name = "gopkg.in/go-playground/colors.v1"
   packages = ["."]
+  pruneopts = "UT"
   revision = "6d198b46b745c6fed7bcae3d0d8f3bb443d37904"
   version = "v1.2.0"
 
 [[projects]]
+  digest = "1:3261a88df0ef9f1cfaa7cdd7f95bb6e86c8b45dbe76a17a0a43dcfc00e72d621"
   name = "gopkg.in/gographics/imagick.v3"
-  packages = ["imagick","imagick/types"]
+  packages = [
+    "imagick",
+    "imagick/types",
+  ]
+  pruneopts = "UT"
   revision = "e5c95c340c8d9bf140ca670563906805b655d9d9"
   version = "v3.2.0"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f52ab0bf12e30200a8acffc34d8f6fa06d91e2bdb7bb00597c4bd5cf28e89cea"
+  input-imports = [
+    "github.com/bwmarrin/discordgo",
+    "github.com/generaltso/vibrant",
+    "github.com/globalsign/mgo",
+    "github.com/globalsign/mgo/bson",
+    "github.com/pkg/errors",
+    "github.com/teris-io/shortid",
+    "github.com/wcharczuk/go-chart",
+    "github.com/wcharczuk/go-chart/drawing",
+    "gopkg.in/go-playground/colors.v1",
+    "gopkg.in/gographics/imagick.v3/imagick",
+  ]
   solver-name = "gps-cdcl"
   solver-version = 1
