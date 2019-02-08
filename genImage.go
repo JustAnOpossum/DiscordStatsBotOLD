@@ -11,8 +11,6 @@ import (
 	"path"
 	"time"
 
-	"github.com/teris-io/shortid"
-
 	"github.com/generaltso/vibrant"
 	"github.com/globalsign/mgo/bson"
 	"github.com/pkg/errors"
@@ -244,7 +242,7 @@ func addGraph(base *imagick.MagickWand, graphType string, profilePic *image.Imag
 	return nil
 }
 
-func createImage(img *image.Image, hoursPlayed, gamesPlayed, name string, graphType string, userID string) (string, error) {
+func createImage(img *image.Image, hoursPlayed, gamesPlayed, name string, graphType string, userID string) (*bytes.Reader, error) {
 	var err error
 	tempFileDir := os.Getenv("TMPDIR")
 	if tempFileDir == "" {
@@ -266,10 +264,9 @@ func createImage(img *image.Image, hoursPlayed, gamesPlayed, name string, graphT
 	err = drawText(mainImg, name, hoursPlayed, gamesPlayed, colors)
 	err = addGraph(mainImg, graphType, img, colors, userID)
 
-	tempFileName, _ := shortid.Generate()
-	tempFilePath := path.Join(tempFileDir, tempFileName)
-	mainImg.WriteImage(tempFilePath)
-	return tempFilePath, err
+	mainImg.SetImageFormat("PNG")
+	blobReader := bytes.NewReader(mainImg.GetImageBlob())
+	return blobReader, err
 }
 
 func createBotImage(profilePic *image.Image, name, totalStats, totalGames, totalImgGenerated, totalServers, totalUsers string) error {

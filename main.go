@@ -198,8 +198,18 @@ func newMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
 			totalGames := db.countGames(bson.M{"id": msgUser.ID})
 			username := msgUser.Username
 			userID := msgUser.ID
-			imgURL, _ := createImage(&avatarImg, fmt.Sprint(totalHours), strconv.Itoa(totalGames), username, "bar", userID)
-			fmt.Println(imgURL)
+			imgReader, _ := createImage(&avatarImg, fmt.Sprint(totalHours), strconv.Itoa(totalGames), username, "bar", userID)
+			discordMessageSend := &discordgo.MessageSend{
+				Content: "uwu",
+				Files: []*discordgo.File{
+					&discordgo.File{
+						Name:        "test.png",
+						ContentType: "image/png",
+						Reader:      imgReader,
+					},
+				},
+			}
+			session.ChannelMessageSendComplex(msg.ChannelID, discordMessageSend)
 		}
 		break
 	case 2:
