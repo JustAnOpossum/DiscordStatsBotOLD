@@ -7,7 +7,6 @@ import (
 	"image/png"
 	_ "image/png"
 	"net/http"
-	"os"
 	"path"
 	"strings"
 	"time"
@@ -245,10 +244,6 @@ func addGraph(base *imagick.MagickWand, graphType string, profilePic *image.Imag
 
 func createImage(img *image.Image, hoursPlayed, gamesPlayed, name string, graphType string, userID string) (*bytes.Reader, error) {
 	var err error
-	tempFileDir := os.Getenv("TMPDIR")
-	if tempFileDir == "" {
-		tempFileDir = "/tmp"
-	}
 	imagick.Initialize()
 	defer imagick.Terminate()
 	mainImg := imagick.NewMagickWand()
@@ -270,7 +265,7 @@ func createImage(img *image.Image, hoursPlayed, gamesPlayed, name string, graphT
 	return blobReader, err
 }
 
-func createBotImage(profilePic *image.Image, name, totalStats, totalGames, totalImgGenerated, totalServers, totalUsers string) error {
+func createBotImage(profilePic *image.Image, name, totalStats, totalGames, totalImgGenerated, totalServers, totalUsers string) (*bytes.Reader, error) {
 	var err error
 	imagick.Initialize()
 	defer imagick.Terminate()
@@ -286,7 +281,10 @@ func createBotImage(profilePic *image.Image, name, totalStats, totalGames, total
 	err = drawCircles(mainImg, colors, "botMask.png")
 	err = addCircleIcon(profilePic, mainImg)
 	err = drawBotText(mainImg, name, totalStats, totalGames, totalImgGenerated, totalServers, totalUsers, colors)
-	return err
+
+	mainImg.SetImageFormat("PNG")
+	blobReader := bytes.NewReader(mainImg.GetImageBlob())
+	return blobReader, err
 }
 
 func loadDiscordAvatar(url string) (*image.Image, error) {

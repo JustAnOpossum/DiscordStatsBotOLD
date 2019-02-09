@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/signal"
+	"path"
 	"regexp"
 	"strconv"
 	"syscall"
@@ -94,16 +95,16 @@ func newMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
 		handlePrivateMessage(session, msg)
 	}
 	botUser, _ := session.User("@me")
-	if msg.Author.ID == botUser.ID { //Make sure bot message don't repeat
+	if msg.Author.ID == botUser.ID || msg.Author.Bot == true { //Make sure bot message don't repeat
 		return
 	}
 	mentions := msg.Mentions
 	switch len(mentions) {
 	case 1:
 		if mentions[0].ID == botUser.ID { //If only the bot is mentioned
-			currentWaitMsg.send(msg.ChannelID)
 			isGraphTypeGuild, _ := regexp.MatchString("guild", msg.Content)
 			if isGraphTypeGuild == true { //Guild Handaler
+				currentWaitMsg.send(msg.ChannelID)
 				guild, _ := session.State.Guild(msg.GuildID)
 				var guildAvatar *image.Image
 				if guild.Icon == "" {
@@ -130,6 +131,30 @@ func newMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
 				break
 
 			} //Normal user handeler
+			isHelpMsg, _ := regexp.MatchString("help", msg.Content) //If help message
+			if isHelpMsg == true {
+				userDM, _ := session.UserChannelCreate(msg.Author.ID)
+				var ignoredStats []stat
+				var userSettings setting
+				var unignoredStats []stat
+				db.findAll("gamestats", bson.M{"id": msg.Author.ID, "ignore": true}, &ignoredStats)
+				db.findOne("settings", bson.M{"id": msg.Author.ID}, &userSettings)
+				db.findAll("gamestats", bson.M{"id": msg.Author.ID, "ignore": false}, &unignoredStats)
+				session.ChannelMessageSendEmbed(userDM.ID, createMainMenu(strconv.Itoa(len(ignoredStats)), strconv.Itoa(len(unignoredStats)), userSettings.GraphType, userSettings.MentionForStats, msg.Author.Username))
+				return
+			}
+			isBotInfo, _ := regexp.MatchString("info", msg.Content) //If bot info
+			if isBotInfo == true {
+				currentWaitMsg.send(msg.ChannelID)
+				messageObj, err := processBotImg(botUser, session)
+				if err != nil {
+					handleErrorInCommand(session, msg.ChannelID, err, currentWaitMsg)
+					return
+				}
+				session.ChannelMessageSendComplex(msg.ChannelID, messageObj)
+				break
+			}
+			currentWaitMsg.send(msg.ChannelID)
 			avatarURL := msg.Author.AvatarURL("512")
 			userAvatar, err := loadDiscordAvatar(avatarURL)
 			if err != nil {
@@ -168,56 +193,36 @@ func newMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
 		session.ChannelMessageSendComplex(msg.ChannelID, messageObj)
 		break
 	}
-	currentWaitMsg.delete()
+	if currentWaitMsg.msgID != "" {
+		currentWaitMsg.delete()
+		currentMsgCountFile, err := ioutil.ReadFile(path.Join(dataDir, "botImg.txt"))
+		if err != nil {
+			return
+		}
+		currentMsgCount, _ := strconv.Atoi(string(currentMsgCountFile))
+		currentMsgCount++
+		err = ioutil.WriteFile(path.Join(dataDir, "botImg.txt"), []byte(strconv.Itoa(currentMsgCount)), 0644)
+		if err != nil {
+			return
+		}
+	}
 }
 
 func handlePrivateMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
-	createMainMenu := func(lengthIgnoredStats, graphType string, mentionSetting bool) *discordgo.MessageEmbed {
-		var mentionSettingStr = "disabled"
-		if mentionSetting == true {
-			mentionSettingStr = "enabled"
-		}
-		return &discordgo.MessageEmbed{
-			Fields: []*discordgo.MessageEmbedField{
-				&discordgo.MessageEmbedField{
-					Name:  "**" + msg.Author.Username + " Settings**",
-					Value: "Below are the options that you can change, if you want to change an option send me a message with the setting you want to change.",
-				},
-				&discordgo.MessageEmbedField{
-					Name:  "graph (" + graphType + ")",
-					Value: "This setting let's you change your graph type.",
-				},
-				&discordgo.MessageEmbedField{
-					Name:  "ignore ",
-					Value: "This setting let's you hide games from your stats.",
-				},
-				&discordgo.MessageEmbedField{
-					Name:  "show ",
-					Value: "This setting let's you show games from your stats.",
-				},
-				&discordgo.MessageEmbedField{
-					Name:  "mention (" + mentionSettingStr + ")",
-					Value: "This lets you disable other people mentioning you to get your stats.",
-				},
-				&discordgo.MessageEmbedField{
-					Name:  "show ignore (" + lengthIgnoredStats + " currently ignored)",
-					Value: "This shows you your ignored games.",
-				},
-			},
-		}
-	}
 	switch msg.Content {
 	case "help":
 		var ignoredStats []stat
+		var unignoredStats []stat
 		var userSettings setting
 		db.findAll("gamestats", bson.M{"id": msg.Author.ID, "ignore": true}, &ignoredStats)
 		db.findOne("settings", bson.M{"id": msg.Author.ID}, &userSettings)
-		session.ChannelMessageSendEmbed(msg.ChannelID, createMainMenu(strconv.Itoa(len(ignoredStats)), userSettings.GraphType, userSettings.MentionForStats))
+		db.findAll("gamestats", bson.M{"id": msg.Author.ID, "ignore": false}, &unignoredStats)
+		session.ChannelMessageSendEmbed(msg.ChannelID, createMainMenu(strconv.Itoa(len(ignoredStats)), strconv.Itoa(len(unignoredStats)), userSettings.GraphType, userSettings.MentionForStats, msg.Author.Username))
 		break
 	case "graph":
 
 		break
-	case "ignore":
+	case "hide":
 		break
 	case "show":
 		break
