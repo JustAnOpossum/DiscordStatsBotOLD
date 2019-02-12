@@ -143,5 +143,24 @@ func TestAddSingleUser(t *testing.T) {
 }
 
 func TestRemoveUser(t *testing.T) {
+	TestSetUpDB(t)
+	pMembers := createFakeMembers(false, 3)
+	nMembers := createFakeMembers(false, 3)
+	pPresences := createFakePresences(pMembers, "Test")
+	nPresences := createFakePresences(nMembers, "")
+	members := append(pMembers, nMembers...)
+	presences := append(pPresences, nPresences...)
+	guild := createFakeGuild(presences, members)
 
+	addDiscordGuild(guild)
+
+	if len(discordUsers) == 0 {
+		t.Error("Length is 0")
+	}
+
+	removeDiscordUser(nMembers[0].ID, guild.ID)
+
+	if len(discordUsers) != 5 {
+		t.Error("User not removed")
+	}
 }
