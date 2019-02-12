@@ -64,58 +64,54 @@ func handleErrorInCommand(session *discordgo.Session, channelID string, err erro
 	fmt.Printf("%+v\n", err)
 }
 
-func removeDiscordUser(session *discordgo.Session, userID string) {
+func removeDiscordUser(userID, deletedGuildID string) {
 	user := discordUsers[userID]
+	otherGuilds := user.otherGuilds
 	user.mu.Lock()
 	defer user.mu.Unlock()
-	startingGuildID := user.mainGuildID
-	for guildID, guild := range user.otherGuilds {
-		for _, member := range guild.Members {
-			if member.User.ID == userID {
-				updateOrSave(guild.ID, user)
-				user.mainGuildID = guild.ID
-				delete(user.otherGuilds, guildID)
-				break
-			} else {
-				updateOrSave(guild.ID, user)
-				delete(user.otherGuilds, guildID)
-			}
-		}
-	}
 
-	if len(user.otherGuilds) == 0 && user.mainGuildID == startingGuildID {
-		if user.isPlaying == true {
-			user.save()
+	if user.mainGuild == deletedGuildID { //If main guild is deleted
+		if len(otherGuilds) == 0 { //No other guilds left
+			if user.isPlaying == true {
+				user.save()
+				updateOrSave(user.mainGuild, user)
+			}
+			delete(discordUsers, user.mainGuild)
+			return
 		}
-		delete(discordUsers, userID)
+		for _, item := range otherGuilds {
+			user.mainGuild = item
+			break
+		}
 	}
+	updateOrSave(deletedGuildID, user)
+	delete(otherGuilds, deletedGuildID)
 }
 
-func addDiscordUser(session *discordgo.Session, newUserID, newGuildID string, isBot bool) {
+func addDiscordUser(newUserID, newGuildID string, isBot bool) {
 	if isBot == false {
 		if _, ok := discordUsers[newUserID]; ok == false {
+			itemToInsert := setting{
+				ID:              newUserID,
+				GraphType:       "bar",
+				MentionForStats: true,
+			}
+			db.insert("settings", itemToInsert)
+
 			discordUsers[newUserID] = &discordUser{
 				userID:      newUserID,
-				mainGuildID: newGuildID,
+				mainGuild:   newGuildID,
 				isPlaying:   false,
+				otherGuilds: make(map[string]string),
 			}
 		} else if _, ok := discordUsers[newUserID].otherGuilds[newGuildID]; ok == false {
-			discordUsers[newUserID].otherGuilds = make(map[string]*discordgo.Guild)
-			guildToAdd, err := session.State.Guild(newGuildID)
-			if err != nil {
-				panic(err)
-			}
-			discordUsers[newUserID].otherGuilds[newGuildID] = guildToAdd
+			discordUsers[newUserID].otherGuilds[newGuildID] = newGuildID
 		}
 	}
 }
 
-func addDiscordGuild(session *discordgo.Session, guildID string) {
+func addDiscordGuild(guildInfo *discordgo.Guild) {
 	var presenceMap = make(map[string]*discordgo.Presence)
-	guildInfo, err := session.Guild(guildID)
-	if err != nil {
-		panic(err)
-	}
 	for _, presence := range guildInfo.Presences {
 		userID := presence.User.ID
 		if _, ok := presenceMap[userID]; ok != true {
@@ -145,18 +141,14 @@ func addDiscordGuild(session *discordgo.Session, guildID string) {
 				}
 				discordUsers[userID] = &discordUser{
 					userID:         userID,
-					mainGuildID:    member.GuildID,
+					mainGuild:      guildInfo.ID,
 					currentGame:    currentGame,
 					startedPlaying: startedPlaying,
 					isPlaying:      isPlaying,
+					otherGuilds:    make(map[string]string),
 				}
-			} else if ok := discordUsers[userID].otherGuilds[guildID]; ok == nil && guildID != discordUsers[userID].mainGuildID {
-				discordUsers[userID].otherGuilds = make(map[string]*discordgo.Guild)
-				guildToAdd, err := session.State.Guild(guildID)
-				if err != nil {
-					panic(err)
-				}
-				discordUsers[userID].otherGuilds[guildID] = guildToAdd
+			} else if ok := discordUsers[userID].otherGuilds[guildInfo.ID]; ok == "" && guildInfo.ID != discordUsers[userID].mainGuild {
+				discordUsers[userID].otherGuilds[guildInfo.ID] = guildInfo.ID
 			}
 		}
 	}

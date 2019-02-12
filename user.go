@@ -14,8 +14,8 @@ var discordUsers = make(map[string]*discordUser)
 
 type discordUser struct {
 	userID         string
-	mainGuildID    string
-	otherGuilds    map[string]*discordgo.Guild
+	mainGuild      string
+	otherGuilds    map[string]string
 	currentGame    string
 	isPlaying      bool
 	startedPlaying time.Time
@@ -50,9 +50,9 @@ func (user *discordUser) save() {
 }
 
 func saveGuild(user *discordUser) {
-	updateOrSave(user.mainGuildID, user)
+	updateOrSave(user.mainGuild, user)
 	for _, item := range user.otherGuilds {
-		updateOrSave(item.ID, user)
+		updateOrSave(item, user)
 	}
 }
 

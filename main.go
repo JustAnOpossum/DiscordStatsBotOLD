@@ -27,7 +27,7 @@ func main() {
 		out = os.Stdout
 	}
 
-	session, dbStruct := setUpDB()
+	session, dbStruct := setUpDB("localhost/statbot")
 	db = dbStruct
 	defer session.Close()
 
@@ -60,30 +60,32 @@ func main() {
 func onReady(session *discordgo.Session, ready *discordgo.Ready) {
 	guilds := ready.Guilds
 	for _, guild := range guilds {
-		addDiscordGuild(session, guild.ID)
+		guildInfo, _ := session.Guild(guild.ID)
+		addDiscordGuild(guildInfo)
 	}
 }
 
 func guildCreate(session *discordgo.Session, guild *discordgo.GuildCreate) {
-	addDiscordGuild(session, guild.ID)
+	guildToSend, _ := session.State.Guild(guild.ID)
+	addDiscordGuild(guildToSend)
 }
 
 func guildDeleted(session *discordgo.Session, deletedGuild *discordgo.GuildDelete) {
 	for _, user := range discordUsers {
-		if user.mainGuildID == deletedGuild.ID {
-			removeDiscordUser(session, user.userID)
+		if user.mainGuild == deletedGuild.ID {
+			removeDiscordUser(user.userID, "")
 		}
 	}
 }
 
 func memberDeleted(session *discordgo.Session, deletedMember *discordgo.GuildMemberRemove) {
 	if _, ok := discordUsers[deletedMember.User.ID]; ok == true {
-		removeDiscordUser(session, deletedMember.User.ID)
+		removeDiscordUser(deletedMember.User.ID, deletedMember.GuildID)
 	}
 }
 
 func memberAdded(session *discordgo.Session, addedMember *discordgo.GuildMemberAdd) {
-	addDiscordUser(session, addedMember.User.ID, addedMember.GuildID, addedMember.User.Bot)
+	addDiscordUser(addedMember.User.ID, addedMember.GuildID, addedMember.User.Bot)
 }
 
 func newMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
@@ -239,7 +241,7 @@ func presenceUpdate(session *discordgo.Session, presence *discordgo.PresenceUpda
 	if _, ok := discordUsers[presence.User.ID]; ok == true {
 		game := presence.Game
 		user := discordUsers[presence.User.ID]
-		if user.mainGuildID == presence.GuildID {
+		if user.mainGuild == presence.GuildID {
 			user.mu.Lock()
 			defer user.mu.Unlock()
 			if game != nil { //Started Playing Game

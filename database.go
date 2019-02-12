@@ -113,8 +113,8 @@ func (datastore *datastore) countGames(query bson.M) int {
 	return len(result)
 }
 
-func setUpDB() (*mgo.Session, *datastore) {
-	session, err := mgo.Dial("localhost/statbot")
+func setUpDB(dbName string) (*mgo.Session, *datastore) {
+	session, err := mgo.Dial(dbName)
 	if err != nil {
 		panic(err)
 	}
