@@ -1,9 +1,11 @@
 package main
 
 import (
+	"io/ioutil"
 	"math/rand"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/globalsign/mgo/bson"
@@ -55,6 +57,15 @@ func createFakeMembers(isBot bool, howMany int) []*discordgo.User {
 	return memberArr
 }
 
+func cleanDiscordUsers(t *testing.T) {
+	for _, item := range discordUsers {
+		delete(discordUsers, item.userID)
+	}
+	if len(discordUsers) != 0 {
+		t.Error("Clearing Failed")
+	}
+}
+
 func TestSetUpDB(t *testing.T) {
 	if db == nil {
 		_, testDB := setUpDB("localhost/testing")
@@ -62,6 +73,7 @@ func TestSetUpDB(t *testing.T) {
 	}
 	db.removeAll("settings", bson.M{})
 	db.removeAll("gamestats", bson.M{})
+	db.removeAll("gameicons", bson.M{})
 }
 
 func TestAddGuild(t *testing.T) {
@@ -104,12 +116,7 @@ func TestAddGuild(t *testing.T) {
 		t.Error("Error adding guild with some same users")
 	}
 
-	for _, item := range discordUsers {
-		delete(discordUsers, item.userID)
-	}
-	if len(discordUsers) != 0 {
-		t.Error("Clearing Failed")
-	}
+	cleanDiscordUsers(t)
 }
 
 func TestAddSingleUser(t *testing.T) {
@@ -134,33 +141,94 @@ func TestAddSingleUser(t *testing.T) {
 		t.Error(len(discordUsers))
 	}
 
-	for _, item := range discordUsers {
-		delete(discordUsers, item.userID)
-	}
-	if len(discordUsers) != 0 {
-		t.Error("Clearing Failed")
-	}
+	cleanDiscordUsers(t)
 }
 
-func TestRemoveUser(t *testing.T) {
+func TestRemoveUserOneGuild(t *testing.T) {
 	TestSetUpDB(t)
-	pMembers := createFakeMembers(false, 3)
-	nMembers := createFakeMembers(false, 3)
-	pPresences := createFakePresences(pMembers, "Test")
-	nPresences := createFakePresences(nMembers, "")
-	members := append(pMembers, nMembers...)
-	presences := append(pPresences, nPresences...)
+	memberP := createFakeMembers(false, 1)
+	member := createFakeMembers(false, 1)
+	presenceP := createFakePresences(memberP, "Test")
+	presence := createFakePresences(member, "")
+	members := append(memberP, member...)
+	presences := append(presenceP, presence...)
 	guild := createFakeGuild(presences, members)
 
 	addDiscordGuild(guild)
 
-	if len(discordUsers) == 0 {
-		t.Error("Length is 0")
+	time.Sleep(time.Second * 5)
+
+	removeDiscordUser(memberP[0].ID, guild.ID)
+	if len(discordUsers) != 1 {
+		t.Error("Users is not equal to 1")
+		t.Error("Got: " + strconv.Itoa(len(discordUsers)))
+	}
+	if db.itemExists("gamestats", bson.M{"id": memberP[0].ID}) == false {
+		t.Error("Stat not saved")
+	}
+	if db.itemExists("gamestats", bson.M{"id": guild.ID}) == false {
+		t.Error("Stat not saved for Guild")
 	}
 
-	removeDiscordUser(nMembers[0].ID, guild.ID)
-
-	if len(discordUsers) != 5 {
-		t.Error("User not removed")
+	removeDiscordUser(member[0].ID, guild.ID)
+	if len(discordUsers) != 0 {
+		t.Error("Users is not equal to 0")
+		t.Error("Got: " + strconv.Itoa(len(discordUsers)))
 	}
+	if db.itemExists("gamestats", bson.M{"id": member[0].ID}) == true {
+		t.Error("Stat save incorrect")
+	}
+	cleanDiscordUsers(t)
+}
+
+func TestRemoveUserDiffirentGuild(t *testing.T) {
+	TestSetUpDB(t)
+	memberP := createFakeMembers(false, 1)
+	member := createFakeMembers(false, 1)
+	presenceP := createFakePresences(memberP, "Test")
+	presence := createFakePresences(member, "")
+	members := append(memberP, member...)
+	presences := append(presenceP, presence...)
+	guild := createFakeGuild(presences, members)
+	guild2 := createFakeGuild(presences, members)
+
+	addDiscordGuild(guild)
+	addDiscordGuild(guild2)
+
+	if len(discordUsers[member[0].ID].otherGuilds) != 1 {
+		t.Error("Other Guilds is not 1")
+		t.Error("Got: " + strconv.Itoa(len(discordUsers[member[0].ID].otherGuilds)))
+	}
+	if len(discordUsers[memberP[0].ID].otherGuilds) != 1 {
+		t.Error("Other Guilds is not 1")
+		t.Error("Got: " + strconv.Itoa(len(discordUsers[memberP[0].ID].otherGuilds)))
+	}
+
+	time.Sleep(time.Second * 5)
+
+	removeDiscordUser(memberP[0].ID, guild.ID)
+	if len(discordUsers) != 2 {
+		t.Error("Users is not equal to 2")
+		t.Error("Got: " + strconv.Itoa(len(discordUsers)))
+	}
+	if discordUsers[memberP[0].ID].isPlaying == false {
+		t.Error("Is playing is false")
+	}
+	if db.itemExists("gamestats", bson.M{"id": guild.ID}) == false {
+		t.Error("Stat not saved for Guild")
+	}
+
+	removeDiscordUser(member[0].ID, guild.ID)
+	if len(discordUsers) != 2 {
+		t.Error("Users is not equal to 2")
+		t.Error("Got: " + strconv.Itoa(len(discordUsers)))
+	}
+	if db.itemExists("gamestats", bson.M{"id": member[0].ID}) == true {
+		t.Error("Stat save incorrect")
+	}
+	cleanDiscordUsers(t)
+}
+
+func TestGetImage(t *testing.T) {
+	keys := ioutil.ReadFile("private.txt")
 }

@@ -89,3 +89,4 @@ $RECYCLE.BIN/
 .vscode
 test.go
 .DS_Store
+private.txt

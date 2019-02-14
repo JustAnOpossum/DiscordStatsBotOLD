@@ -76,7 +76,7 @@ func removeDiscordUser(userID, deletedGuildID string) {
 				user.save()
 				updateOrSave(user.mainGuild, user)
 			}
-			delete(discordUsers, user.mainGuild)
+			delete(discordUsers, user.userID)
 			return
 		}
 		for _, item := range otherGuilds {
