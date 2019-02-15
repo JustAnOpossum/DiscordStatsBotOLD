@@ -244,3 +244,32 @@ func createMainMenu(lengthIgnoredStats, lengthUnignoredStats, graphType string, 
 		},
 	}
 }
+
+func handlePresenceUpdate(presence *discordgo.PresenceUpdate) {
+	game := presence.Game
+	user := discordUsers[presence.User.ID]
+	user.mu.Lock()
+	defer user.mu.Unlock()
+	if game != nil { //Started Playing Game
+		if game.Name != user.currentGame {
+			fmt.Fprintln(out, "Started Playing Game "+game.Name)
+			if user.isPlaying == true { //Switching from other game
+				fmt.Fprintln(out, "Switching From Other Game "+user.currentGame)
+				user.save()
+				saveGuild(user)
+				user.reset()
+				user.startTracking(presence)
+			} else { //Not currently playing game
+				fmt.Fprintln(out, "Not Playing Any Game")
+				user.startTracking(presence)
+			}
+		}
+	} else { //Stopped Playing Game
+		if user.currentGame != "" {
+			fmt.Fprintln(out, "Stopped Playing Game")
+			user.save()
+			saveGuild(user)
+			user.reset()
+		}
+	}
+}

@@ -29,7 +29,7 @@ type imgItem struct {
 var apiKey = os.Getenv("CSETOKEN")
 var cseID = os.Getenv("CSEID")
 
-func processImg(img imgItem, imgBuffer *bytes.Buffer, gameName string) bool {
+func processImg(img imgItem, imgBuffer *bytes.Buffer, gameName string) error {
 	fmt.Fprintln(out, "Got good image")
 	shortID, _ := shortid.Generate()
 	var ext string
@@ -46,12 +46,12 @@ func processImg(img imgItem, imgBuffer *bytes.Buffer, gameName string) bool {
 	fmt.Fprintln(out, "Decoded Img")
 	if err != nil {
 		fmt.Println(err)
-		return false
+		return errors.Wrap(err, "Decoding Img")
 	}
 	imgColors, err := getColorPallete(&imgDecode)
 	if err != nil {
 		fmt.Println(err)
-		return false
+		return errors.Wrap(err, "Getting Img colors")
 	}
 	fmt.Fprintln(out, "Got colors")
 	itemToInsert := icon{
@@ -61,44 +61,46 @@ func processImg(img imgItem, imgBuffer *bytes.Buffer, gameName string) bool {
 	}
 	db.insert("gameicons", itemToInsert)
 	fmt.Fprintln(out, "Inserted IMG")
-	return true
+	return nil
 }
 
-func getGameImg(gameName string) bool {
+func getGameImg(gameName string) error {
 	imgArr, err := getImagesFromGoogle(gameName)
 	if err != nil {
 		fmt.Println(errors.Wrap(err, "Error Getting Google Images"))
 	}
 	for _, img := range imgArr.Items {
 		if img.Mime == "image/png" {
-			imgBuffer, err := downloadImg(img.Link)
-			isValidImgString := http.DetectContentType(imgBuffer.Bytes())
-			isValidImg, _ := regexp.MatchString("image/png", isValidImgString)
-			if err == nil && isValidImg == true {
-				processImg(img, imgBuffer, gameName)
-				return true
+			imgBuffer, err := downloadImg(img.Link, "image/png")
+			if err == nil {
+				err = processImg(img, imgBuffer, gameName)
+				if err != nil {
+					return errors.Wrap(err, "Processing IMG")
+				}
+				return nil
 			}
 		}
 	}
 	for _, img := range imgArr.Items {
 		if img.Mime == "image/jpeg" {
-			imgBuffer, err := downloadImg(img.Link)
-			isValidImgString := http.DetectContentType(imgBuffer.Bytes())
-			isValidImg, _ := regexp.MatchString("image/png", isValidImgString)
-			if err == nil && isValidImg == true {
-				processImg(img, imgBuffer, gameName)
-				return true
+			imgBuffer, err := downloadImg(img.Link, "image/jpeg")
+			if err == nil {
+				err = processImg(img, imgBuffer, gameName)
+				if err != nil {
+					return errors.Wrap(err, "Processing IMG")
+				}
+				return nil
 			}
 		}
 	}
 	itemToInsert := blacklist{
-		game: gameName,
+		Game: gameName,
 	}
 	db.insert("iconblacklists", itemToInsert)
-	return false
+	return nil
 }
 
-func downloadImg(URL string) (*bytes.Buffer, error) {
+func downloadImg(URL, imgType string) (*bytes.Buffer, error) {
 	imgClient := &http.Client{
 		Timeout: time.Second * 10,
 	}
@@ -115,6 +117,11 @@ func downloadImg(URL string) (*bytes.Buffer, error) {
 	}
 	returnBuffer := new(bytes.Buffer)
 	returnBuffer.Write(body)
+	isValidImgString := http.DetectContentType(returnBuffer.Bytes())
+	isValidImg, _ := regexp.MatchString(imgType, isValidImgString)
+	if isValidImg != true {
+		return nil, errors.New("Not Valid Img")
+	}
 	return returnBuffer, nil
 }
 
@@ -128,6 +135,9 @@ func getImagesFromGoogle(query string) (googleJSON, error) {
 		return googleJSON{}, errors.Wrap(err, "Making Request")
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return googleJSON{}, errors.New("Resp Code Not 200")
+	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {

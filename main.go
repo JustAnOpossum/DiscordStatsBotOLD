@@ -239,43 +239,19 @@ func handlePrivateMessage(session *discordgo.Session, msg *discordgo.MessageCrea
 
 func presenceUpdate(session *discordgo.Session, presence *discordgo.PresenceUpdate) {
 	if _, ok := discordUsers[presence.User.ID]; ok == true {
-		game := presence.Game
-		user := discordUsers[presence.User.ID]
-		if user.mainGuild == presence.GuildID {
-			user.mu.Lock()
-			defer user.mu.Unlock()
-			if game != nil { //Started Playing Game
-				if db.itemExists("gameicons", bson.M{"game": game.Name}) == false && db.itemExists("iconblacklists", bson.M{"game": game.Name}) == false {
-					getGameImg(game.Name)
+		if discordUsers[presence.User.ID].mainGuild == presence.GuildID {
+			if presence.Game != nil {
+				if db.itemExists("gameicons", bson.M{"game": presence.Game.Name}) == false && db.itemExists("iconblacklists", bson.M{"game": presence.Game.Name}) == false {
+					getGameImg(presence.Game.Name)
 				}
-				if db.itemExists("iconblacklists", bson.M{"game": game.Name}) == true {
-					if db.itemExists("gamestats", bson.M{"game": game.Name}) == true {
-						db.removeAll("gamestats", bson.M{"game": game.Name})
+				if db.itemExists("iconblacklists", bson.M{"game": presence.Game.Name}) == true {
+					if db.itemExists("gamestats", bson.M{"game": presence.Game.Name}) == true {
+						db.removeAll("gamestats", bson.M{"game": presence.Game.Name})
 					}
 					return
 				}
-				if game.Name != user.currentGame {
-					fmt.Fprintln(out, "Started Playing Game "+game.Name)
-					if user.isPlaying == true { //Switching from other game
-						fmt.Fprintln(out, "Switching From Other Game "+user.currentGame)
-						user.save()
-						saveGuild(user)
-						user.reset()
-						user.startTracking(presence)
-					} else { //Not currently playing game
-						fmt.Fprintln(out, "Not Playing Any Game")
-						user.startTracking(presence)
-					}
-				}
-			} else { //Stopped Playing Game
-				if user.currentGame != "" {
-					fmt.Fprintln(out, "Stopped Playing Game")
-					user.save()
-					saveGuild(user)
-					user.reset()
-				}
-
 			}
+			handlePresenceUpdate(presence)
 		}
 	}
 }

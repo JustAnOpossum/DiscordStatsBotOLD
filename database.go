@@ -24,7 +24,7 @@ type icon struct {
 
 type blacklist struct {
 	_id  bson.ObjectId
-	game string
+	Game string
 }
 
 type setting struct {
