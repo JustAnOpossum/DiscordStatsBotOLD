@@ -64,15 +64,19 @@ func (keepTrackOfMsg *keepTrackOfMsg) handleSettingChange(pickedOptionInt int) {
 	delete(userSettingsMap, keepTrackOfMsg.id)
 }
 
-func handleHelpMsg(session *discordgo.Session, msg *discordgo.MessageCreate) {
-	userDM, _ := session.UserChannelCreate(msg.Author.ID)
+func handleSettingMsg(session *discordgo.Session, msg *discordgo.MessageCreate, isDM bool) {
+	channelToSend := msg.ChannelID
+	if isDM == false {
+		userSession, _ := session.UserChannelCreate(msg.Author.ID)
+		channelToSend = userSession.ID
+	}
 	var ignoredStats []stat
 	var userSettings setting
 	var unignoredStats []stat
 	db.findAll("gamestats", bson.M{"id": msg.Author.ID, "ignore": true}, &ignoredStats)
 	db.findOne("settings", bson.M{"id": msg.Author.ID}, &userSettings)
 	db.findAll("gamestats", bson.M{"id": msg.Author.ID, "ignore": false}, &unignoredStats)
-	session.ChannelMessageSendEmbed(userDM.ID, createMainMenu(strconv.Itoa(len(ignoredStats)), strconv.Itoa(len(unignoredStats)), userSettings.GraphType, userSettings.MentionForStats, msg.Author.Username))
+	session.ChannelMessageSendEmbed(channelToSend, createMainMenu(strconv.Itoa(len(ignoredStats)), strconv.Itoa(len(unignoredStats)), userSettings.GraphType, userSettings.MentionForStats, msg.Author.Username))
 }
 
 func createMainMenu(lengthIgnoredStats, lengthUnignoredStats, graphType string, mentionSetting bool, username string) *discordgo.MessageEmbed {
@@ -91,16 +95,47 @@ func createMainMenu(lengthIgnoredStats, lengthUnignoredStats, graphType string, 
 				Value: "This setting lets you change your graph type.",
 			},
 			&discordgo.MessageEmbedField{
-				Name:  "Type \"hide\" (Current Setting: " + lengthUnignoredStats + " currently showing)",
+				Name:  "Type \"hide\" (Currently Shown: " + lengthUnignoredStats + ")",
 				Value: "This setting lets you hide games from your stats.",
 			},
 			&discordgo.MessageEmbedField{
-				Name:  "Type \"show\" (Current Setting: " + lengthIgnoredStats + " currently hidden)",
+				Name:  "Type \"show\" (Currently Hidden: " + lengthIgnoredStats + ")",
 				Value: "This setting lets you show games from your stats that are ignored.",
 			},
 			&discordgo.MessageEmbedField{
-				Name:  "Type \"mention\" (Current Setting" + mentionSettingStr + ")",
+				Name:  "Type \"mention\" (Current Setting: " + mentionSettingStr + ")",
 				Value: "This lets you disable other people mentioning you to get your stats.",
+			},
+		},
+	}
+}
+
+func createCommandMenu() *discordgo.MessageEmbed {
+	return &discordgo.MessageEmbed{
+		Fields: []*discordgo.MessageEmbedField{
+			&discordgo.MessageEmbedField{
+				Name:  "***Commands***",
+				Value: "Here is what you can do with the bot.\nAll commands are used by mentioning the bot",
+			},
+			&discordgo.MessageEmbedField{
+				Name:  "\"guild\"",
+				Value: "This gives you the stats for the guild.",
+			},
+			&discordgo.MessageEmbedField{
+				Name:  "\"info\"",
+				Value: "Shows the bots stats.",
+			},
+			&discordgo.MessageEmbedField{
+				Name:  "\"settings\"",
+				Value: "This lets you change your user settings",
+			},
+			&discordgo.MessageEmbedField{
+				Name:  "Mention The Bot",
+				Value: "mention the bot to get your stats.",
+			},
+			&discordgo.MessageEmbedField{
+				Name:  "Mention Another User",
+				Value: "Mention another user along with the bot and get their stats. Does not work if they have disabled it or are a bot.",
 			},
 		},
 	}

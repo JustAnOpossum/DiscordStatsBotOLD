@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -178,7 +179,9 @@ func processUserImg(userID, username string, avatar *image.Image) (*discordgo.Me
 	db.findAll("gamestats", bson.M{"id": userID}, &userStats)
 	totalHours := db.countHours(bson.M{"id": userID})
 	totalGames := db.countGames(bson.M{"id": userID})
-	imgReader, err := createImage(avatar, fmt.Sprint(totalHours), strconv.Itoa(totalGames), username, "bar", userID)
+	var userSetting setting
+	db.findOne("settings", bson.M{"id": userID}, &userSetting)
+	imgReader, err := createImage(avatar, fmt.Sprint(totalHours), strconv.Itoa(totalGames), username, userSetting.GraphType, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -252,5 +255,89 @@ func handlePresenceUpdate(presence *discordgo.PresenceUpdate) {
 			saveGuild(user)
 			user.reset()
 		}
+	}
+}
+
+func handlePrivateMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
+	if _, ok := userSettingsMap[msg.Author.ID]; ok == true {
+		pickedOption, err := strconv.Atoi(msg.Content)
+		if err != nil {
+			session.ChannelMessageSend(msg.ChannelID, "Please Enter A Valid Option.")
+			return
+		}
+		userSettingsMap[msg.Author.ID].handleSettingChange(pickedOption)
+		handleSettingMsg(session, msg, true)
+		return
+	}
+	switch strings.ToLower(msg.Content) {
+	case "settings":
+		handleSettingMsg(session, msg, true)
+		break
+	case "help":
+		session.ChannelMessageSendEmbed(msg.ChannelID, createCommandMenu())
+		break
+	case "graph":
+		optionsToSend := []string{
+			"bar",
+			"pie",
+		}
+		userSettingsMap[msg.Author.ID] = &keepTrackOfMsg{
+			command:   "graph",
+			options:   optionsToSend,
+			id:        msg.Author.ID,
+			channelID: msg.ChannelID,
+			session:   session,
+		}
+		userSettingsMap[msg.Author.ID].sendSettingMsg()
+		break
+	case "hide":
+		optionsToSend := make([]string, 0)
+		var results []stat
+		db.findAll("gamestats", bson.M{"id": msg.Author.ID, "ignore": false}, &results)
+		for _, item := range results {
+			optionsToSend = append(optionsToSend, item.Game)
+		}
+		userSettingsMap[msg.Author.ID] = &keepTrackOfMsg{
+			command:   "hide",
+			options:   optionsToSend,
+			id:        msg.Author.ID,
+			channelID: msg.ChannelID,
+			session:   session,
+		}
+		userSettingsMap[msg.Author.ID].sendSettingMsg()
+		break
+	case "show":
+		optionsToSend := make([]string, 0)
+		var results []stat
+		db.findAll("gamestats", bson.M{"id": msg.Author.ID, "ignore": true}, &results)
+		for _, item := range results {
+			optionsToSend = append(optionsToSend, item.Game)
+		}
+		userSettingsMap[msg.Author.ID] = &keepTrackOfMsg{
+			command:   "show",
+			options:   optionsToSend,
+			id:        msg.Author.ID,
+			channelID: msg.ChannelID,
+			session:   session,
+		}
+		userSettingsMap[msg.Author.ID].sendSettingMsg()
+		break
+	case "mention":
+		optionsToSend := []string{
+			"true",
+			"false",
+		}
+		userSettingsMap[msg.Author.ID] = &keepTrackOfMsg{
+			command:   "mention",
+			options:   optionsToSend,
+			id:        msg.Author.ID,
+			channelID: msg.ChannelID,
+			session:   session,
+		}
+		userSettingsMap[msg.Author.ID].sendSettingMsg()
+		break
+	default:
+		session.ChannelMessageSend(msg.ChannelID, "Please Enter A Valid Setting.")
+		break
 	}
 }

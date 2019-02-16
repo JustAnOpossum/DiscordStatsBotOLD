@@ -124,7 +124,7 @@ func drawText(base *imagick.MagickWand, name, hoursPlayed, gamesPlayed string, c
 	defer textWand.Destroy()
 	defer textColor.Destroy()
 	textColor.SetColor(colors.Main.RGBHex())
-	textWand.SetFont("main.ttf")
+	textWand.SetFont(path.Join(dataDir, "main.ttf"))
 	textWand.SetFillColor(textColor)
 	textWand.SetFontSize(70)
 	textWand.SetGravity(imagick.GRAVITY_CENTER)
@@ -150,7 +150,7 @@ func drawBotText(base *imagick.MagickWand, name, totalStats, totalGames, totalIm
 	defer textWand.Destroy()
 	defer textColor.Destroy()
 	textColor.SetColor(colors.Main.RGBHex())
-	textWand.SetFont("main.ttf")
+	textWand.SetFont(path.Join(dataDir, "main.ttf"))
 	textWand.SetFillColor(textColor)
 	textWand.SetGravity(imagick.GRAVITY_CENTER)
 
@@ -255,7 +255,7 @@ func createImage(img *image.Image, hoursPlayed, gamesPlayed, name string, graphT
 	bgColor.SetColor(colors.Main.RGBHex())
 	mainImg.NewImage(1000, 1000, bgColor)
 
-	err = drawCircles(mainImg, colors, "normalMask.png")
+	err = drawCircles(mainImg, colors, path.Join(dataDir, "normalMask.png"))
 	err = addCircleIcon(img, mainImg)
 	err = drawText(mainImg, name, hoursPlayed, gamesPlayed, colors)
 	err = addGraph(mainImg, graphType, img, colors, userID)
@@ -278,7 +278,7 @@ func createBotImage(profilePic *image.Image, name, totalStats, totalGames, total
 	bgColor.SetColor(colors.Main.RGBHex())
 	mainImg.NewImage(1000, 1000, bgColor)
 
-	err = drawCircles(mainImg, colors, "botMask.png")
+	err = drawCircles(mainImg, colors, path.Join(dataDir, "botMask.png"))
 	err = addCircleIcon(profilePic, mainImg)
 	err = drawBotText(mainImg, name, totalStats, totalGames, totalImgGenerated, totalServers, totalUsers, colors)
 

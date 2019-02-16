@@ -7,8 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"regexp"
-	"strconv"
-	"strings"
 	"syscall"
 
 	"github.com/bwmarrin/discordgo"
@@ -49,6 +47,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	discord.UpdateStatus(0, "@ For Stats, help")
 
 	botImgStats = &imgGenFile{}
 	botImgStats.load()
@@ -146,9 +146,14 @@ func newMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
 			break
 
 		} //Normal user handeler
+		isSettingMsg, _ := regexp.MatchString("setting", msg.Content) //If help message
+		if isSettingMsg == true {
+			handleSettingMsg(session, msg, false)
+			return
+		}
 		isHelpMsg, _ := regexp.MatchString("help", msg.Content) //If help message
 		if isHelpMsg == true {
-			handleHelpMsg(session, msg)
+			session.ChannelMessageSendEmbed(msg.ChannelID, createCommandMenu())
 			return
 		}
 		isBotInfo, _ := regexp.MatchString("info", msg.Content) //If bot info
@@ -177,8 +182,12 @@ func newMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
 		session.ChannelMessageSendComplex(msg.ChannelID, messageObj)
 		break
 	case 2:
-		if mentions[0].Bot == true {
-
+		var mainUser setting
+		var mentionedUser setting
+		db.findOne("settings", bson.M{"id": msg.Author.ID}, &mainUser)
+		db.findOne("settings", bson.M{"id": mentions[1].ID}, &mentionedUser)
+		if mainUser.MentionForStats == false || mentionedUser.MentionForStats == false {
+			return
 		}
 		currentWaitMsg.send(msg.ChannelID)
 		meintonedUser := mentions[0]
@@ -200,91 +209,6 @@ func newMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
 	}
 	currentWaitMsg.delete()
 	botImgStats.increase()
-}
-
-func handlePrivateMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
-	if _, ok := userSettingsMap[msg.Author.ID]; ok == true {
-		pickedOption, err := strconv.Atoi(msg.Content)
-		if err != nil {
-			session.ChannelMessageSend(msg.ChannelID, "Please Enter A Valid Option.")
-			return
-		}
-		userSettingsMap[msg.Author.ID].handleSettingChange(pickedOption)
-	}
-	switch strings.ToLower(msg.Content) {
-	case "help":
-		var ignoredStats []stat
-		var unignoredStats []stat
-		var userSettings setting
-		db.findAll("gamestats", bson.M{"id": msg.Author.ID, "ignore": true}, &ignoredStats)
-		db.findOne("settings", bson.M{"id": msg.Author.ID}, &userSettings)
-		db.findAll("gamestats", bson.M{"id": msg.Author.ID, "ignore": false}, &unignoredStats)
-		session.ChannelMessageSendEmbed(msg.ChannelID, createMainMenu(strconv.Itoa(len(ignoredStats)), strconv.Itoa(len(unignoredStats)), userSettings.GraphType, userSettings.MentionForStats, msg.Author.Username))
-		break
-	case "graph":
-		optionsToSend := []string{
-			"bar",
-			"pie",
-		}
-		userSettingsMap[msg.Author.ID] = &keepTrackOfMsg{
-			command:   "graph",
-			options:   optionsToSend,
-			id:        msg.Author.ID,
-			channelID: msg.ChannelID,
-			session:   session,
-		}
-		userSettingsMap[msg.Author.ID].sendSettingMsg()
-		break
-	case "hide":
-		optionsToSend := make([]string, 0)
-		var results []stat
-		db.findAll("gamestats", bson.M{"id": msg.Author.ID, "ignore": false}, &results)
-		for _, item := range results {
-			optionsToSend = append(optionsToSend, item.Game)
-		}
-		userSettingsMap[msg.Author.ID] = &keepTrackOfMsg{
-			command:   "hide",
-			options:   optionsToSend,
-			id:        msg.Author.ID,
-			channelID: msg.ChannelID,
-			session:   session,
-		}
-		userSettingsMap[msg.Author.ID].sendSettingMsg()
-		break
-	case "show":
-		optionsToSend := make([]string, 0)
-		var results []stat
-		db.findAll("gamestats", bson.M{"id": msg.Author.ID, "ignore": true}, &results)
-		for _, item := range results {
-			optionsToSend = append(optionsToSend, item.Game)
-		}
-		userSettingsMap[msg.Author.ID] = &keepTrackOfMsg{
-			command:   "show",
-			options:   optionsToSend,
-			id:        msg.Author.ID,
-			channelID: msg.ChannelID,
-			session:   session,
-		}
-		userSettingsMap[msg.Author.ID].sendSettingMsg()
-		break
-	case "mention":
-		optionsToSend := []string{
-			"true",
-			"false",
-		}
-		userSettingsMap[msg.Author.ID] = &keepTrackOfMsg{
-			command:   "mention",
-			options:   optionsToSend,
-			id:        msg.Author.ID,
-			channelID: msg.ChannelID,
-			session:   session,
-		}
-		userSettingsMap[msg.Author.ID].sendSettingMsg()
-		break
-	default:
-		session.ChannelMessageSend(msg.ChannelID, "Please Enter A Valid Setting.")
-		break
-	}
 }
 
 func presenceUpdate(session *discordgo.Session, presence *discordgo.PresenceUpdate) {
