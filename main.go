@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"image"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -117,38 +116,33 @@ func newMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
 	mentions := msg.Mentions
 	switch len(mentions) {
 	case 1:
-		isGraphTypeGuild, _ := regexp.MatchString("guild", msg.Content)
-		if isGraphTypeGuild == true { //Guild Handaler
-			currentWaitMsg.send(msg.ChannelID)
-			guild, _ := session.State.Guild(msg.GuildID)
-			var guildAvatar *image.Image
-			if guild.Icon == "" {
-				createdIcon, err := createGuildAvatar(guild.Name)
-				if err != nil {
-					handleErrorInCommand(session, msg.ChannelID, err, currentWaitMsg)
-					return
+		isGuildSettingMsg, _ := regexp.MatchString("guild setting", msg.Content) //If help message
+		if isGuildSettingMsg == true {
+			if db.itemExists("settings", bson.M{"id": msg.GuildID}) == false {
+				itemToInsert := setting{
+					ID:        msg.GuildID,
+					GraphType: "pie",
+					IsGuild:   true,
+					Role:      "StatMaster",
 				}
-				guildAvatar = createdIcon
-			} else {
-				guildIconGet, err := session.GuildIcon(msg.GuildID)
-				if err != nil {
-					handleErrorInCommand(session, msg.ChannelID, err, currentWaitMsg)
-					return
-				}
-				guildAvatar = &guildIconGet
+				db.insert("settings", itemToInsert)
 			}
-			messageObj, err := processUserImg(msg.GuildID, guild.Name, guildAvatar)
-			if err != nil {
-				handleErrorInCommand(session, msg.ChannelID, err, currentWaitMsg)
-				return
-			}
-			session.ChannelMessageSendComplex(msg.ChannelID, messageObj)
-			break
-
-		} //Normal user handeler
+			guildInfo, _ := session.State.Guild(msg.GuildID)
+			msgToSend := handleSettingMsg(guildInfo.Name, msg.GuildID)
+			session.ChannelMessageSendEmbed(msg.ChannelID, msgToSend)
+			return
+		}
+		isRoleMsg, _ := regexp.MatchString("role", msg.Content) //If help message
+		if isRoleMsg == true {
+			roleMatchRegex := regexp.MustCompile("(?i)role(.*)")
+			roleMatchChange := roleMatchRegex.FindStringSubmatch(msg.Content)
+			return
+		}
 		isSettingMsg, _ := regexp.MatchString("setting", msg.Content) //If help message
 		if isSettingMsg == true {
-			handleSettingMsg(session, msg, false)
+			msgToSend := handleSettingMsg(msg.Author.Username, msg.Author.ID)
+			channelToSend, _ := session.UserChannelCreate(msg.Author.ID)
+			session.ChannelMessageSendEmbed(channelToSend.ID, msgToSend)
 			return
 		}
 		isHelpMsg, _ := regexp.MatchString("help", msg.Content) //If help message
@@ -156,6 +150,17 @@ func newMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
 			session.ChannelMessageSendEmbed(msg.ChannelID, createCommandMenu())
 			return
 		}
+		isGraphTypeGuild, _ := regexp.MatchString("guild", msg.Content)
+		if isGraphTypeGuild == true { //Guild Handaler
+			currentWaitMsg.send(msg.ChannelID)
+			guildImgObj, err := handleGuildImgCreation(msg.GuildID, msg.ChannelID, session)
+			if err != nil {
+				handleErrorInCommand(session, msg.ChannelID, err, currentWaitMsg)
+			}
+			session.ChannelMessageSendComplex(msg.ChannelID, guildImgObj)
+			break
+		}
+		//Normal user handeler
 		isBotInfo, _ := regexp.MatchString("info", msg.Content) //If bot info
 		if isBotInfo == true {
 			currentWaitMsg.send(msg.ChannelID)

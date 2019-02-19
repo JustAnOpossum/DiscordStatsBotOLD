@@ -32,6 +32,8 @@ type setting struct {
 	ID              string
 	GraphType       string
 	MentionForStats bool
+	IsGuild         bool
+	Role            string
 }
 
 type datastore struct {

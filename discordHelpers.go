@@ -260,18 +260,25 @@ func handlePresenceUpdate(presence *discordgo.PresenceUpdate) {
 
 func handlePrivateMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
 	if _, ok := userSettingsMap[msg.Author.ID]; ok == true {
+		if strings.ToLower(msg.Content) == "cancel" {
+			delete(userSettingsMap, msg.Author.ID)
+			session.ChannelMessageSend(msg.ChannelID, "Cancelled")
+			return
+		}
 		pickedOption, err := strconv.Atoi(msg.Content)
 		if err != nil {
 			session.ChannelMessageSend(msg.ChannelID, "Please Enter A Valid Option.")
 			return
 		}
 		userSettingsMap[msg.Author.ID].handleSettingChange(pickedOption)
-		handleSettingMsg(session, msg, true)
+		msgToSend := handleSettingMsg(msg.Author.Username, msg.Author.ID)
+		session.ChannelMessageSendEmbed(msg.ChannelID, msgToSend)
 		return
 	}
 	switch strings.ToLower(msg.Content) {
 	case "settings":
-		handleSettingMsg(session, msg, true)
+		msgToSend := handleSettingMsg(msg.Author.Username, msg.Author.ID)
+		session.ChannelMessageSendEmbed(msg.ChannelID, msgToSend)
 		break
 	case "help":
 		session.ChannelMessageSendEmbed(msg.ChannelID, createCommandMenu())
@@ -341,3 +348,33 @@ func handlePrivateMessage(session *discordgo.Session, msg *discordgo.MessageCrea
 		break
 	}
 }
+
+func handleGuildImgCreation(guildID, channelID string, session *discordgo.Session) (*discordgo.MessageSend, error) {
+	guild, _ := session.State.Guild(guildID)
+	var guildAvatar *image.Image
+	if guild.Icon == "" {
+		createdIcon, err := createGuildAvatar(guild.Name)
+		if err != nil {
+			return nil, errors.Wrap(err, "Creating Guild Avatar")
+		}
+		guildAvatar = createdIcon
+	} else {
+		guildIconGet, err := session.GuildIcon(guildID)
+		if err != nil {
+			return nil, errors.Wrap(err, "Getting Guild Icon")
+		}
+		guildAvatar = &guildIconGet
+	}
+	messageObj, err := processUserImg(guildID, guild.Name, guildAvatar)
+	if err != nil {
+		return nil, errors.Wrap(err, "Processing User IMG")
+	}
+	return messageObj, nil
+}
+
+// func checkForOwnerOrRole(roleID string, user *discordgo.Member) bool {
+// 	var roleString string
+// 	if roleID == "" {
+// 		roleString = "StatMaster"
+// 	}
+// }
