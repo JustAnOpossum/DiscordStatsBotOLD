@@ -270,7 +270,10 @@ func handlePrivateMessage(session *discordgo.Session, msg *discordgo.MessageCrea
 			session.ChannelMessageSend(msg.ChannelID, "Please Enter A Valid Option.")
 			return
 		}
-		userSettingsMap[msg.Author.ID].handleSettingChange(pickedOption)
+		didComplete := userSettingsMap[msg.Author.ID].handleSettingChange(pickedOption)
+		if didComplete == false {
+			return
+		}
 		msgToSend := handleSettingMsg(msg.Author.Username, msg.Author.ID)
 		session.ChannelMessageSendEmbed(msg.ChannelID, msgToSend)
 		return
@@ -371,10 +374,3 @@ func handleGuildImgCreation(guildID, channelID string, session *discordgo.Sessio
 	}
 	return messageObj, nil
 }
-
-// func checkForOwnerOrRole(roleID string, user *discordgo.Member) bool {
-// 	var roleString string
-// 	if roleID == "" {
-// 		roleString = "StatMaster"
-// 	}
-// }

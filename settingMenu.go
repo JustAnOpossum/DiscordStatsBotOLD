@@ -29,8 +29,14 @@ func (keepTrackOfMsg *keepTrackOfMsg) sendSettingMsg() {
 	stringToSend := "**" + strings.Title(keepTrackOfMsg.command) + " Settings: (Type \"cancel\" to Cancel)**\n"
 	for i, item := range keepTrackOfMsg.options {
 		stringToSend += "\n" + strconv.Itoa(i+1) + ". " + strings.Title(item)
+		if len(stringToSend) >= 1900 {
+			stringToSend += "\u200B"
+		}
 	}
-	keepTrackOfMsg.session.ChannelMessageSend(keepTrackOfMsg.channelID, stringToSend)
+	messages := strings.Split(stringToSend, "\u200B")
+	for i := range messages {
+		keepTrackOfMsg.session.ChannelMessageSend(keepTrackOfMsg.channelID, messages[i])
+	}
 	keepTrackOfMsg.timer = time.NewTimer(time.Minute * 5)
 	go func() {
 		<-keepTrackOfMsg.timer.C
@@ -38,10 +44,10 @@ func (keepTrackOfMsg *keepTrackOfMsg) sendSettingMsg() {
 	}()
 }
 
-func (keepTrackOfMsg *keepTrackOfMsg) handleSettingChange(pickedOptionInt int) {
+func (keepTrackOfMsg *keepTrackOfMsg) handleSettingChange(pickedOptionInt int) bool {
 	if pickedOptionInt-1 > len(keepTrackOfMsg.options) {
 		keepTrackOfMsg.session.ChannelMessageSend(keepTrackOfMsg.channelID, "Please Pick A Valid Option.")
-		return
+		return false
 	}
 	pickedOption := keepTrackOfMsg.options[pickedOptionInt-1]
 	switch keepTrackOfMsg.command {
@@ -62,6 +68,7 @@ func (keepTrackOfMsg *keepTrackOfMsg) handleSettingChange(pickedOptionInt int) {
 	keepTrackOfMsg.timer.Stop()
 	keepTrackOfMsg.session.ChannelMessageSend(keepTrackOfMsg.channelID, "Settings Updated")
 	delete(userSettingsMap, keepTrackOfMsg.id)
+	return true
 }
 
 func handleSettingMsg(username, userID string) *discordgo.MessageEmbed {
@@ -72,9 +79,6 @@ func handleSettingMsg(username, userID string) *discordgo.MessageEmbed {
 	db.findAll("gamestats", bson.M{"id": userID, "ignore": true}, &ignoredStats)
 	db.findOne("settings", bson.M{"id": userID}, &userSettings)
 	db.findAll("gamestats", bson.M{"id": userID, "ignore": false}, &unignoredStats)
-	if userSettings.IsGuild == true {
-		roleName = userSettings.Role
-	}
 	return createMainMenu(strconv.Itoa(len(ignoredStats)), strconv.Itoa(len(unignoredStats)), userSettings.GraphType, userSettings.MentionForStats, username, roleName)
 }
 
@@ -103,11 +107,7 @@ func createMainMenu(lengthIgnoredStats, lengthUnignoredStats, graphType string, 
 			},
 			&discordgo.MessageEmbedField{
 				Name:  "Type \"mention\" (Current Setting: " + mentionSettingStr + ")",
-				Value: "This lets you disable other people mentioning you to get your stats. User only",
-			},
-			&discordgo.MessageEmbedField{
-				Name:  "Type \"role [Role Name]\" (Current Setting: " + roleName + ")",
-				Value: "GUILD SETTING ONLY. This lets you set the role for other people in your server to change the stat bot settings.",
+				Value: "This lets you disable other people mentioning you to get your stats.",
 			},
 		},
 	}
@@ -123,10 +123,6 @@ func createCommandMenu() *discordgo.MessageEmbed {
 			&discordgo.MessageEmbedField{
 				Name:  "\"guild\"",
 				Value: "This gives you the stats for the guild.",
-			},
-			&discordgo.MessageEmbedField{
-				Name:  "\"guild settings\"",
-				Value: "The server owner or anyone with the \"StatMaster\" role can change the guild settings for the bot.",
 			},
 			&discordgo.MessageEmbedField{
 				Name:  "\"info\"",

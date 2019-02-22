@@ -33,7 +33,6 @@ type setting struct {
 	GraphType       string
 	MentionForStats bool
 	IsGuild         bool
-	Role            string
 }
 
 type datastore struct {

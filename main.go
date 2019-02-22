@@ -116,29 +116,7 @@ func newMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
 	mentions := msg.Mentions
 	switch len(mentions) {
 	case 1:
-		isGuildSettingMsg, _ := regexp.MatchString("guild setting", msg.Content) //If help message
-		if isGuildSettingMsg == true {
-			if db.itemExists("settings", bson.M{"id": msg.GuildID}) == false {
-				itemToInsert := setting{
-					ID:        msg.GuildID,
-					GraphType: "pie",
-					IsGuild:   true,
-					Role:      "StatMaster",
-				}
-				db.insert("settings", itemToInsert)
-			}
-			guildInfo, _ := session.State.Guild(msg.GuildID)
-			msgToSend := handleSettingMsg(guildInfo.Name, msg.GuildID)
-			session.ChannelMessageSendEmbed(msg.ChannelID, msgToSend)
-			return
-		}
-		isRoleMsg, _ := regexp.MatchString("role", msg.Content) //If help message
-		if isRoleMsg == true {
-			roleMatchRegex := regexp.MustCompile("(?i)role(.*)")
-			roleMatchChange := roleMatchRegex.FindStringSubmatch(msg.Content)
-			return
-		}
-		isSettingMsg, _ := regexp.MatchString("setting", msg.Content) //If help message
+		isSettingMsg, _ := regexp.MatchString("setting", msg.Content) //If setting message
 		if isSettingMsg == true {
 			msgToSend := handleSettingMsg(msg.Author.Username, msg.Author.ID)
 			channelToSend, _ := session.UserChannelCreate(msg.Author.ID)

@@ -244,6 +244,11 @@ func addGraph(base *imagick.MagickWand, graphType string, profilePic *image.Imag
 
 func createImage(img *image.Image, hoursPlayed, gamesPlayed, name string, graphType string, userID string) (*bytes.Reader, error) {
 	var err error
+
+	if graphType == "" {
+		graphType = "bar"
+	}
+
 	imagick.Initialize()
 	defer imagick.Terminate()
 	mainImg := imagick.NewMagickWand()
