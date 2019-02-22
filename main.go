@@ -16,9 +16,8 @@ var db *datastore
 var botImgStats *imgGenFile
 var out = ioutil.Discard
 
-//const dataDir string = "/mnt/c/Users/camer/Desktop/GO/Data/stats"
-const dataDir string = "/Users/dasfox/Desktop/Go/data/stats"
-const gameImgDir string = dataDir + "/Images/Game"
+var dataDir = os.Getenv("DATADIR")
+var gameImgDir = dataDir + "/Images/Game"
 
 func main() {
 	if os.Getenv("DEBUG") == "true" {
