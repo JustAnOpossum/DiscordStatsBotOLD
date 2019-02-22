@@ -33,7 +33,6 @@ func main() {
 		panic(err)
 	}
 
-	discord.AddHandler(onReady)
 	discord.AddHandler(presenceUpdate)
 	discord.AddHandler(guildCreate)
 	discord.AddHandler(guildDeleted)
@@ -57,14 +56,6 @@ func main() {
 	<-exitChan
 
 	discord.Close()
-}
-
-func onReady(session *discordgo.Session, ready *discordgo.Ready) {
-	guilds := ready.Guilds
-	for _, guild := range guilds {
-		guildInfo, _ := session.Guild(guild.ID)
-		addDiscordGuild(guildInfo)
-	}
 }
 
 func guildCreate(session *discordgo.Session, guild *discordgo.GuildCreate) {

@@ -139,45 +139,48 @@ func addDiscordGuild(guildInfo *discordgo.Guild) {
 		}
 	}
 	for _, member := range guildInfo.Members {
-		if member.User.Bot == false {
-			if db.itemExists("settings", bson.M{"id": member.User.ID}) == false {
-				itemToInsert := setting{
-					ID:              member.User.ID,
-					GraphType:       "bar",
-					MentionForStats: true,
-				}
-				db.insert("settings", itemToInsert)
+		if member.User.Bot == true {
+			continue
+		}
+		if db.itemExists("settings", bson.M{"id": member.User.ID}) == false {
+			itemToInsert := setting{
+				ID:              member.User.ID,
+				GraphType:       "bar",
+				MentionForStats: true,
 			}
-			userID := member.User.ID
-			presence := presenceMap[userID]
-			if _, ok := discordUsers[userID]; ok != true {
-				if presence == nil {
-					discordUsers[userID] = &discordUser{
-						userID:      userID,
-						mainGuild:   guildInfo.ID,
-						otherGuilds: make(map[string]string),
-					}
-					return
-				}
-				var currentGame string
-				var isPlaying bool
-				var startedPlaying time.Time
-				if presence.Game != nil {
-					currentGame = presence.Game.Name
-					isPlaying = true
-					startedPlaying = time.Now()
-				}
+			db.insert("settings", itemToInsert)
+		}
+		userID := member.User.ID
+		presence := presenceMap[userID]
+		if _, ok := discordUsers[userID]; ok != true {
+			if presence == nil {
 				discordUsers[userID] = &discordUser{
-					userID:         userID,
-					mainGuild:      guildInfo.ID,
-					currentGame:    currentGame,
-					startedPlaying: startedPlaying,
-					isPlaying:      isPlaying,
-					otherGuilds:    make(map[string]string),
+					userID:      userID,
+					mainGuild:   guildInfo.ID,
+					otherGuilds: make(map[string]string),
 				}
-			} else if ok := discordUsers[userID].otherGuilds[guildInfo.ID]; ok == "" && guildInfo.ID != discordUsers[userID].mainGuild {
-				discordUsers[userID].otherGuilds[guildInfo.ID] = guildInfo.ID
+				continue
 			}
+			var currentGame string
+			var isPlaying bool
+			var startedPlaying time.Time
+			if presence.Game != nil {
+				currentGame = presence.Game.Name
+				isPlaying = true
+				startedPlaying = time.Now()
+			}
+			discordUsers[userID] = &discordUser{
+				userID:         userID,
+				mainGuild:      guildInfo.ID,
+				currentGame:    currentGame,
+				startedPlaying: startedPlaying,
+				isPlaying:      isPlaying,
+				otherGuilds:    make(map[string]string),
+			}
+		} else if ok := discordUsers[userID].otherGuilds[guildInfo.ID]; ok == "" && guildInfo.ID != discordUsers[userID].mainGuild {
+			discordUsers[userID].mu.Lock()
+			defer discordUsers[userID].mu.Unlock()
+			discordUsers[userID].otherGuilds[guildInfo.ID] = guildInfo.ID
 		}
 	}
 }
