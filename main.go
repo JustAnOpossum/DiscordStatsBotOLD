@@ -207,7 +207,7 @@ func presenceUpdate(session *discordgo.Session, presence *discordgo.PresenceUpda
 					return
 				}
 			}
-			handlePresenceUpdate(presence)
 		}
+		handlePresenceUpdate(presence)
 	}
 }

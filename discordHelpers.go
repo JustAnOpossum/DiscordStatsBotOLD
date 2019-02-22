@@ -151,6 +151,14 @@ func addDiscordGuild(guildInfo *discordgo.Guild) {
 			userID := member.User.ID
 			presence := presenceMap[userID]
 			if _, ok := discordUsers[userID]; ok != true {
+				if presence == nil {
+					discordUsers[userID] = &discordUser{
+						userID:      userID,
+						mainGuild:   guildInfo.ID,
+						otherGuilds: make(map[string]string),
+					}
+					return
+				}
 				var currentGame string
 				var isPlaying bool
 				var startedPlaying time.Time
