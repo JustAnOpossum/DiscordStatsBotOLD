@@ -167,7 +167,7 @@ func newMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
 		var mainUser setting
 		var mentionedUser setting
 		db.findOne("settings", bson.M{"id": msg.Author.ID}, &mainUser)
-		db.findOne("settings", bson.M{"id": mentions[1].ID}, &mentionedUser)
+		db.findOne("settings", bson.M{"id": mentions[0].ID}, &mentionedUser)
 		if mainUser.MentionForStats == false || mentionedUser.MentionForStats == false {
 			return
 		}
