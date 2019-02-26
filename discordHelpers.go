@@ -22,6 +22,7 @@ type waitingMsg struct {
 	middleMsg      string
 	currentTicker  *time.Ticker
 	currentSession *discordgo.Session
+	stopChan       chan bool
 }
 
 type imgGenFile struct {
@@ -58,13 +59,22 @@ func (waiting *waitingMsg) send(channelID string) {
 	waiting.channelID = channelID
 	ticker := time.NewTicker(time.Millisecond * 1000)
 	waiting.currentTicker = ticker
+	waiting.stopChan = make(chan bool, 1)
 	go func() {
-		for range ticker.C {
-			currentClockStr := " :clock" + strconv.Itoa(clocks[currentClock]) + ": "
-			waiting.currentSession.ChannelMessageEdit(channelID, msg.ID, currentClockStr+waiting.middleMsg+currentClockStr)
-			currentClock++
-			if currentClock == 10 {
-				waiting.currentTicker.Stop()
+		select {
+		case <-ticker.C:
+			{
+				currentClockStr := " :clock" + strconv.Itoa(clocks[currentClock]) + ": "
+				waiting.currentSession.ChannelMessageEdit(channelID, msg.ID, currentClockStr+waiting.middleMsg+currentClockStr)
+				currentClock++
+				if currentClock == 10 {
+					waiting.currentTicker.Stop()
+					waiting.stopChan <- true
+				}
+			}
+		case <-waiting.stopChan:
+			{
+				return
 			}
 		}
 	}()
@@ -73,6 +83,7 @@ func (waiting *waitingMsg) send(channelID string) {
 func (waiting *waitingMsg) delete() {
 	waiting.currentSession.ChannelMessageDelete(waiting.channelID, waiting.msgID)
 	waiting.currentTicker.Stop()
+	waiting.stopChan <- true
 }
 
 func handleErrorInCommand(session *discordgo.Session, channelID string, err error, waitingMsg *waitingMsg) {
