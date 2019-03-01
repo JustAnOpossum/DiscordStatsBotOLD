@@ -148,6 +148,36 @@ func TestAddSingleUser(t *testing.T) {
 	cleanDiscordUsers(t)
 }
 
+func TestAddBlacklistGuild(t *testing.T) {
+	TestSetUpDB(t)
+	members := createFakeMembers(false, 1)
+	presences := createFakePresences(members, "Test2")
+	guild := createFakeGuild(presences, members)
+
+	guildBlacklists = append(guildBlacklists, guild.ID)
+
+	addDiscordGuild(guild)
+	if len(discordUsers) != 0 {
+		t.Error("Discord Users is Greater Than 0")
+		t.Error(len(discordUsers))
+	}
+}
+
+func TestAddBlacklistUser(t *testing.T) {
+	TestSetUpDB(t)
+	members := createFakeMembers(false, 1)
+	presences := createFakePresences(members, "Test2")
+	guild := createFakeGuild(presences, members)
+
+	guildBlacklists = append(guildBlacklists, guild.ID)
+
+	addDiscordUser(members[0].ID, guild.ID, false)
+	if len(discordUsers) != 0 {
+		t.Error("Discord Users is Greater Than 0")
+		t.Error(len(discordUsers))
+	}
+}
+
 func TestRemoveUserOneGuild(t *testing.T) {
 	TestSetUpDB(t)
 	memberP := createFakeMembers(false, 1)
@@ -247,6 +277,8 @@ func TestGetGameImg(t *testing.T) {
 	keysSplit := strings.Split(string(keys), "\n")
 	apiKey = keysSplit[1]
 	cseID = keysSplit[0]
+	dataDir = "/Users/dasfox/Desktop/Go/data/stats"
+	gameImgDir = dataDir + "/Images/Game"
 
 	err := getGameImg("Spotify")
 	if err != nil {
@@ -262,7 +294,7 @@ func TestGetGameImg(t *testing.T) {
 	if _, err := os.Stat(path.Join(dataDir, gameInfo.Location)); os.IsNotExist(err) {
 		t.Error("File Does Not Exsist")
 	}
-	os.Remove(path.Join(dataDir, gameInfo.Location))
+	//os.Remove(path.Join(dataDir, gameInfo.Location))
 
 	err = getGameImg("odgugofidugfdoigiofdgfd7g98fdg89df7g98df7gfdg")
 	if err != nil {

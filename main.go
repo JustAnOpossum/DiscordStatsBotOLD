@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"regexp"
+	"strings"
 	"syscall"
 
 	"github.com/bwmarrin/discordgo"
@@ -18,11 +19,14 @@ var out = ioutil.Discard
 
 var dataDir = os.Getenv("DATADIR")
 var gameImgDir = dataDir + "/Images/Game"
+var guildBlacklists []string
 
 func main() {
 	if os.Getenv("DEBUG") == "true" {
 		out = os.Stdout
 	}
+	envGuildBlacklists := os.Getenv("BLACKLIST")
+	guildBlacklists = strings.Split(envGuildBlacklists, ",")
 
 	session, dbStruct := setUpDB("localhost/statbot")
 	db = dbStruct

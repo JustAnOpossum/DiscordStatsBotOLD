@@ -120,28 +120,39 @@ func removeDiscordUser(userID, deletedGuildID string) {
 }
 
 func addDiscordUser(newUserID, newGuildID string, isBot bool) {
-	if isBot == false {
-		if _, ok := discordUsers[newUserID]; ok == false {
-			itemToInsert := setting{
-				ID:              newUserID,
-				GraphType:       "bar",
-				MentionForStats: true,
-			}
-			db.insert("settings", itemToInsert)
-
-			discordUsers[newUserID] = &discordUser{
-				userID:      newUserID,
-				mainGuild:   newGuildID,
-				isPlaying:   false,
-				otherGuilds: make(map[string]string),
-			}
-		} else if _, ok := discordUsers[newUserID].otherGuilds[newGuildID]; ok == false {
-			discordUsers[newUserID].otherGuilds[newGuildID] = newGuildID
+	for i := range guildBlacklists {
+		if guildBlacklists[i] == newGuildID {
+			return
 		}
+	}
+	if isBot == true {
+		return
+	}
+	if _, ok := discordUsers[newUserID]; ok == false {
+		itemToInsert := setting{
+			ID:              newUserID,
+			GraphType:       "bar",
+			MentionForStats: true,
+		}
+		db.insert("settings", itemToInsert)
+
+		discordUsers[newUserID] = &discordUser{
+			userID:      newUserID,
+			mainGuild:   newGuildID,
+			isPlaying:   false,
+			otherGuilds: make(map[string]string),
+		}
+	} else if _, ok := discordUsers[newUserID].otherGuilds[newGuildID]; ok == false {
+		discordUsers[newUserID].otherGuilds[newGuildID] = newGuildID
 	}
 }
 
 func addDiscordGuild(guildInfo *discordgo.Guild) {
+	for i := range guildBlacklists {
+		if guildBlacklists[i] == guildInfo.ID {
+			return
+		}
+	}
 	var presenceMap = make(map[string]*discordgo.Presence)
 	for _, presence := range guildInfo.Presences {
 		userID := presence.User.ID

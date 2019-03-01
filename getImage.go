@@ -41,6 +41,9 @@ func processImg(img imgItem, imgBuffer *bytes.Buffer, gameName string) error {
 	}
 	var fileName = shortID + ext
 	err := ioutil.WriteFile(path.Join(gameImgDir, fileName), imgBuffer.Bytes(), 0644)
+	if err != nil {
+		return errors.Wrap(err, "Writing Img")
+	}
 	fmt.Fprintln(out, "Wrote File")
 	imgDecode, _, err := image.Decode(imgBuffer)
 	fmt.Fprintln(out, "Decoded Img")
