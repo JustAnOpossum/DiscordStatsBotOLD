@@ -87,7 +87,10 @@ func memberAdded(session *discordgo.Session, addedMember *discordgo.GuildMemberA
 
 func newMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
 	botUser, _ := session.User("@me")
-	if msg.Author.ID == botUser.ID || msg.Author.Bot == true { //Make sure bot message don't repeat
+	if msg.Author.Bot == true {
+		return
+	}
+	if msg.Author.ID == botUser.ID { //Make sure bot message don't repeat
 		return
 	}
 	if msg.GuildID == "" { //Private message handaler
