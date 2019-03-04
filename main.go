@@ -131,6 +131,7 @@ func newMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
 			guildImgObj, err := handleGuildImgCreation(msg.GuildID, msg.ChannelID, session)
 			if err != nil {
 				handleErrorInCommand(session, msg.ChannelID, err, currentWaitMsg)
+				return
 			}
 			session.ChannelMessageSendComplex(msg.ChannelID, guildImgObj)
 			break
