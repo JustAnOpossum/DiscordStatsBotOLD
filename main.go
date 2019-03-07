@@ -86,7 +86,12 @@ func memberAdded(session *discordgo.Session, addedMember *discordgo.GuildMemberA
 }
 
 func newMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
-	botUser, _ := session.User("@me")
+	botUser, err := session.User("@me")
+	if err != nil {
+		fmt.Println("Got Bot Error")
+		fmt.Printf("%+v\n", err)
+		return
+	}
 	if msg.Author.Bot == true {
 		return
 	}
