@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/globalsign/mgo/bson"
 	"github.com/pkg/errors"
 	"github.com/teris-io/shortid"
 )
@@ -69,6 +70,7 @@ func processImg(img imgItem, imgBuffer *bytes.Buffer, gameName string) error {
 
 func getGameImg(gameName string) error {
 	imgArr, err := getImagesFromGoogle(gameName)
+	fmt.Println(imgArr)
 	if err != nil {
 		fmt.Println(errors.Wrap(err, "Error Getting Google Images"))
 	}
@@ -129,7 +131,7 @@ func downloadImg(URL, imgType string) (*bytes.Buffer, error) {
 }
 
 func getImagesFromGoogle(query string) (googleJSON, error) {
-	query = query + " icon"
+	query = query + " logo"
 	imgClient := &http.Client{
 		Timeout: time.Second * 10,
 	}
@@ -152,4 +154,27 @@ func getImagesFromGoogle(query string) (googleJSON, error) {
 		return googleJSON{}, errors.Wrap(err, "Parsing JSON")
 	}
 	return parsedJSON, nil
+}
+
+func getTop5Img(userID string) error {
+	var results []stat
+	howManyToLoop := 5
+
+	db.findAllSort("gamestats", "-hours", bson.M{"id": userID}, &results)
+
+	for i := range results {
+		if i == howManyToLoop {
+			break
+		}
+		if db.itemExists("gameicons", bson.M{"game": results[i].Game}) == true {
+			continue
+		}
+		err := getGameImg(results[i].Game)
+		if err != nil {
+			db.removeAll("gamestats", bson.M{"game": results[i].Game})
+			howManyToLoop++
+		}
+	}
+
+	return nil
 }
