@@ -7,7 +7,6 @@ import (
 	"image"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"os"
 	"path"
 	"regexp"
@@ -18,26 +17,76 @@ import (
 	"github.com/teris-io/shortid"
 )
 
-type googleJSON struct {
-	Items []imgItem `json:"items"`
+type bingAnswer struct {
+	Type            string `json:"_type"`
+	Instrumentation struct {
+		PageLoadPingURL interface{} `json:"pageLoadPingUrl"`
+	} `json:"instrumentation"`
+	WebSearchURL          string      `json:"webSearchUrl"`
+	TotalEstimatedMatches int         `json:"totalEstimatedMatches"`
+	Value                 []bingValue `json:"value"`
+	QueryExpansions       []struct {
+		Text         string      `json:"text"`
+		DisplayText  string      `json:"displayText"`
+		WebSearchURL string      `json:"webSearchUrl"`
+		SearchLink   string      `json:"searchLink"`
+		Thumbnail1   interface{} `json:"thumbnail1"`
+	} `json:"queryExpansions"`
+	NextOffsetAddCount int `json:"nextOffsetAddCount"`
+	PivotSuggestions   []struct {
+		Pivot       string `json:"pivot"`
+		Suggestions []struct {
+			Text         string `json:"text"`
+			DisplayText  string `json:"displayText"`
+			WebSearchURL string `json:"webSearchUrl"`
+			SearchLink   string `json:"searchLink"`
+			Thumbnail    struct {
+				Width  int `json:"width"`
+				Height int `json:"height"`
+			} `json:"thumbnail"`
+		} `json:"suggestions"`
+	} `json:"pivotSuggestions"`
+	DisplayShoppingSourcesBadges bool        `json:"displayShoppingSourcesBadges"`
+	DisplayRecipeSourcesBadges   bool        `json:"displayRecipeSourcesBadges"`
+	SimilarTerms                 interface{} `json:"similarTerms"`
 }
 
-type imgItem struct {
-	Link string `json:"link"`
-	Mime string `json:"mime"`
+type bingValue struct {
+	Name               string      `json:"name"`
+	DatePublished      string      `json:"datePublished"`
+	HomePageURL        interface{} `json:"homePageUrl"`
+	ContentSize        string      `json:"contentSize"`
+	HostPageDisplayURL string      `json:"hostPageDisplayUrl"`
+	Width              int         `json:"width"`
+	Height             int         `json:"height"`
+	Thumbnail          struct {
+		Width  int `json:"width"`
+		Height int `json:"height"`
+	} `json:"thumbnail"`
+	ImageInsightsToken     string      `json:"imageInsightsToken"`
+	InsightsSourcesSummary interface{} `json:"insightsSourcesSummary"`
+	ImageID                string      `json:"imageId"`
+	AccentColor            string      `json:"accentColor"`
+	WebSearchURL           string      `json:"webSearchUrl"`
+	ThumbnailURL           string      `json:"thumbnailUrl"`
+	EncodingFormat         string      `json:"encodingFormat"`
+	ContentURL             string      `json:"contentUrl"`
 }
 
 var apiKey = os.Getenv("CSETOKEN")
 var cseID = os.Getenv("CSEID")
+var bingToken = os.Getenv("BINGTOKEN")
 
-func processImg(img imgItem, imgBuffer *bytes.Buffer, gameName string) error {
+const endpoint = "https://api.cognitive.microsoft.com/bing/v7.0/images/search"
+
+func processImg(mimeType string, imgBuffer *bytes.Buffer, gameName string) error {
 	fmt.Fprintln(out, "Got good image")
 	shortID, _ := shortid.Generate()
 	var ext string
-	if img.Mime == "image/jpeg" {
+	if mimeType == "jpeg" {
 		ext = ".jpg"
 	}
-	if img.Mime == "image/png" {
+	if mimeType == "png" {
 		ext = ".png"
 	}
 	var fileName = shortID + ext
@@ -69,16 +118,15 @@ func processImg(img imgItem, imgBuffer *bytes.Buffer, gameName string) error {
 }
 
 func getGameImg(gameName string) error {
-	imgArr, err := getImagesFromGoogle(gameName)
-	fmt.Println(imgArr)
+	imgArr, err := getImagesFromBing(gameName)
 	if err != nil {
 		fmt.Println(errors.Wrap(err, "Error Getting Google Images"))
 	}
-	for _, img := range imgArr.Items {
-		if img.Mime == "image/png" {
-			imgBuffer, err := downloadImg(img.Link, "image/png")
+	for _, img := range imgArr.Value {
+		if img.EncodingFormat == "png" {
+			imgBuffer, err := downloadImg(img.ContentURL, "image/png")
 			if err == nil {
-				err = processImg(img, imgBuffer, gameName)
+				err = processImg(img.EncodingFormat, imgBuffer, gameName)
 				if err != nil {
 					return errors.Wrap(err, "Processing IMG")
 				}
@@ -86,11 +134,11 @@ func getGameImg(gameName string) error {
 			}
 		}
 	}
-	for _, img := range imgArr.Items {
-		if img.Mime == "image/jpeg" {
-			imgBuffer, err := downloadImg(img.Link, "image/jpeg")
+	for _, img := range imgArr.Value {
+		if img.EncodingFormat == "jpeg" {
+			imgBuffer, err := downloadImg(img.ContentURL, "image/jpeg")
 			if err == nil {
-				err = processImg(img, imgBuffer, gameName)
+				err = processImg(img.EncodingFormat, imgBuffer, gameName)
 				if err != nil {
 					return errors.Wrap(err, "Processing IMG")
 				}
@@ -102,7 +150,7 @@ func getGameImg(gameName string) error {
 		Game: gameName,
 	}
 	db.insert("iconblacklists", itemToInsert)
-	return nil
+	return errors.New("Added Icon To Blacklist")
 }
 
 func downloadImg(URL, imgType string) (*bytes.Buffer, error) {
@@ -130,33 +178,44 @@ func downloadImg(URL, imgType string) (*bytes.Buffer, error) {
 	return returnBuffer, nil
 }
 
-func getImagesFromGoogle(query string) (googleJSON, error) {
-	query = query + " logo"
-	imgClient := &http.Client{
-		Timeout: time.Second * 10,
-	}
-	resp, err := imgClient.Get("https://www.googleapis.com/customsearch/v1?key=" + apiKey + "&cx=" + cseID + "&q=" + url.QueryEscape(query) + "&imgType=photo&searchType=image&fields=items(link,mime)")
+func getImagesFromBing(query string) (bingAnswer, error) {
+	query = query + " icon"
+	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
-		return googleJSON{}, errors.Wrap(err, "Making Request")
+		return bingAnswer{}, errors.Wrap(err, "Creating Bing Request")
+	}
+
+	param := req.URL.Query()
+	param.Add("q", query)
+	req.URL.RawQuery = param.Encode()
+	req.Header.Add("Ocp-Apim-Subscription-Key", bingToken)
+
+	client := new(http.Client)
+	client.Timeout = time.Second * 10
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return bingAnswer{}, errors.Wrap(err, "Making Bing Request")
+	}
+	if resp.StatusCode != 200 {
+		return bingAnswer{}, errors.Wrap(err, "Bing Resp Not 200")
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return googleJSON{}, errors.New("Resp Code Not 200")
-	}
-
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return googleJSON{}, errors.Wrap(err, "Reading Body")
+		return bingAnswer{}, errors.Wrap(err, "Parsing Bing Body")
 	}
-	var parsedJSON googleJSON
-	err = json.Unmarshal(body, &parsedJSON)
+
+	var returnAns bingAnswer
+	err = json.Unmarshal(body, &returnAns)
 	if err != nil {
-		return googleJSON{}, errors.Wrap(err, "Parsing JSON")
+		return bingAnswer{}, errors.Wrap(err, "Parsing Bing JSON")
 	}
-	return parsedJSON, nil
+
+	return returnAns, nil
 }
 
-func getTop5Img(userID string) error {
+func getTop5Img(userID string) {
 	var results []stat
 	howManyToLoop := 5
 
@@ -175,6 +234,4 @@ func getTop5Img(userID string) error {
 			howManyToLoop++
 		}
 	}
-
-	return nil
 }

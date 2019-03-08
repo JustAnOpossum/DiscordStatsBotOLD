@@ -62,8 +62,6 @@ func main() {
 
 	fmt.Println("Bot is started")
 
-	getTop5Img("68553027849564160")
-
 	exitChan := make(chan os.Signal, 1)
 	signal.Notify(exitChan, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
 	<-exitChan
@@ -163,10 +161,7 @@ func newMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
 			handleErrorInCommand(session, msg.ChannelID, err, currentWaitMsg)
 			return
 		}
-		err = getTop5Img(msg.Author.ID)
-		if err != nil {
-
-		}
+		getTop5Img(msg.Author.ID)
 		messageObj, err := processUserImg(msg.Author.ID, msg.Author.Username, userAvatar)
 		if err != nil {
 			handleErrorInCommand(session, msg.ChannelID, err, currentWaitMsg)
@@ -213,7 +208,7 @@ func presenceUpdate(session *discordgo.Session, presence *discordgo.PresenceUpda
 				}
 			}
 			if discordUsers[presence.User.ID].isPlaying == true {
-				if db.itemExists("iconblacklists", bson.M{"game": presence.Game.Name}) == true {
+				if db.itemExists("iconblacklists", bson.M{"game": discordUsers[presence.User.ID].currentGame}) == true {
 					return
 				}
 			}

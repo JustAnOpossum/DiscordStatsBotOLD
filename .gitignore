@@ -90,3 +90,4 @@ $RECYCLE.BIN/
 test.go
 .DS_Store
 private.txt
+dataDir.txt

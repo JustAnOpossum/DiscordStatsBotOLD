@@ -1,12 +1,8 @@
 package main
 
 import (
-	"io/ioutil"
 	"math/rand"
-	"os"
-	"path"
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/bwmarrin/discordgo"
@@ -268,40 +264,6 @@ func TestLoadDiscordAvatar(t *testing.T) {
 	if err != nil {
 		t.Error("Got Error")
 		t.Error(err)
-	}
-}
-
-func TestGetGameImg(t *testing.T) {
-	TestSetUpDB(t)
-	keys, _ := ioutil.ReadFile("private.txt")
-	keysSplit := strings.Split(string(keys), "\n")
-	apiKey = keysSplit[1]
-	cseID = keysSplit[0]
-	dataDir = "/Users/dasfox/Desktop/Go/data/stats"
-	gameImgDir = dataDir + "/Images/Game"
-
-	err := getGameImg("Spotify")
-	if err != nil {
-		t.Error("Got Error Spotify")
-		t.Error(err)
-	}
-	if db.itemExists("gameicons", bson.M{"game": "Spotify"}) == false {
-		t.Error("Item does not exsist in DB")
-		t.FailNow()
-	}
-	var gameInfo icon
-	db.findOne("gameicons", bson.M{"game": "Spotify"}, &gameInfo)
-	if _, err := os.Stat(path.Join(dataDir, gameInfo.Location)); os.IsNotExist(err) {
-		t.Error("File Does Not Exsist")
-	}
-	//os.Remove(path.Join(dataDir, gameInfo.Location))
-
-	err = getGameImg("odgugofidugfdoigiofdgfd7g98fdg89df7g98df7gfdg")
-	if err != nil {
-		t.Error("Got No Error Random")
-	}
-	if db.itemExists("iconblacklists", bson.M{"game": "odgugofidugfdoigiofdgfd7g98fdg89df7g98df7gfdg"}) == false {
-		t.Error("Item does not exsist in DB blacklist")
 	}
 }
 
