@@ -20,6 +20,7 @@ var out = ioutil.Discard
 var dataDir = os.Getenv("DATADIR")
 var gameImgDir = dataDir + "/Images/Game"
 var guildBlacklists []string
+var botUser *discordgo.User
 
 func main() {
 	if os.Getenv("DEBUG") == "true" {
@@ -50,6 +51,11 @@ func main() {
 	}
 
 	discord.UpdateStatus(0, "@ For Stats, help")
+
+	botUser, err = discord.User("@me")
+	if err != nil {
+		panic(err)
+	}
 
 	botImgStats = &imgGenFile{}
 	botImgStats.load()
@@ -86,12 +92,6 @@ func memberAdded(session *discordgo.Session, addedMember *discordgo.GuildMemberA
 }
 
 func newMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
-	botUser, err := session.User("@me")
-	if err != nil {
-		fmt.Println("Got Bot Error")
-		fmt.Printf("%+v\n", err)
-		return
-	}
 	if msg.Author.Bot == true {
 		return
 	}
