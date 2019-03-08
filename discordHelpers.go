@@ -241,11 +241,11 @@ func processBotImg(user *discordgo.User, session *discordgo.Session) (*discordgo
 	db.findAll("gamestats", bson.M{}, &botStats)
 	db.findAll("gameicons", bson.M{}, &botGames)
 	totalStats := strconv.Itoa(len(botStats))
-	totalGames := strconv.Itoa(len(botGames))
+	totalGames := db.countGames(bson.M{})
 	totalImgGen := botImgStats.numTimes
 	totalServers := strconv.Itoa(len(session.State.Guilds))
 	totalUsers := strconv.Itoa(len(discordUsers))
-	imgReader, err := createBotImage(avatar, user.Username, totalStats, totalGames, strconv.Itoa(totalImgGen), totalServers, totalUsers)
+	imgReader, err := createBotImage(avatar, user.Username, totalStats, strconv.Itoa(totalGames), strconv.Itoa(totalImgGen), totalServers, totalUsers)
 	if err != nil {
 		return nil, errors.Wrap(err, "Creating bot img")
 	}
