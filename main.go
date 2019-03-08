@@ -134,6 +134,7 @@ func newMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
 		isGraphTypeGuild, _ := regexp.MatchString("guild", msg.Content)
 		if isGraphTypeGuild == true { //Guild Handaler
 			currentWaitMsg.send(msg.ChannelID)
+			getTop5Img(msg.GuildID)
 			guildImgObj, err := handleGuildImgCreation(msg.GuildID, msg.ChannelID, session)
 			if err != nil {
 				handleErrorInCommand(session, msg.ChannelID, err, currentWaitMsg)
@@ -185,6 +186,7 @@ func newMessage(session *discordgo.Session, msg *discordgo.MessageCreate) {
 			handleErrorInCommand(session, msg.ChannelID, err, currentWaitMsg)
 			return
 		}
+		getTop5Img(meintonedUser.ID)
 		messageObj, err := processUserImg(meintonedUser.ID, meintonedUser.Username, userAvatar)
 		if err != nil {
 			handleErrorInCommand(session, msg.ChannelID, err, currentWaitMsg)
