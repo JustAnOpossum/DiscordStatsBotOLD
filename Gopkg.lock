@@ -124,14 +124,6 @@
   revision = "31aff87c08e9a5e5d524279a564f96968336f886"
 
 [[projects]]
-  digest = "1:4353ae1b808b8613b5cca55807a399839d0e6c4a31c3cc3ee96efe2b64cfd788"
-  name = "gopkg.in/go-playground/colors.v1"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "6d198b46b745c6fed7bcae3d0d8f3bb443d37904"
-  version = "v1.2.0"
-
-[[projects]]
   digest = "1:3261a88df0ef9f1cfaa7cdd7f95bb6e86c8b45dbe76a17a0a43dcfc00e72d621"
   name = "gopkg.in/gographics/imagick.v3"
   packages = [
@@ -154,7 +146,6 @@
     "github.com/teris-io/shortid",
     "github.com/wcharczuk/go-chart",
     "github.com/wcharczuk/go-chart/drawing",
-    "gopkg.in/go-playground/colors.v1",
     "gopkg.in/gographics/imagick.v3/imagick",
   ]
   solver-name = "gps-cdcl"

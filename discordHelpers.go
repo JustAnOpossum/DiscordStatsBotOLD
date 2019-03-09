@@ -23,6 +23,7 @@ type waitingMsg struct {
 	currentTicker  *time.Ticker
 	currentSession *discordgo.Session
 	stopChan       chan bool
+	err            bool
 }
 
 type imgGenFile struct {
@@ -54,33 +55,42 @@ func (imgGenFile *imgGenFile) increase() {
 func (waiting *waitingMsg) send(channelID string) {
 	var currentClock int
 	clocks := [11]int{2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
-	msg, _ := waiting.currentSession.ChannelMessageSend(channelID, ":clock1: "+waiting.middleMsg+" :clock1:")
+	msg, err := waiting.currentSession.ChannelMessageSend(channelID, ":clock1: "+waiting.middleMsg+" :clock1:")
+	if err != nil {
+		waiting.err = true
+		return
+	}
 	waiting.msgID = msg.ID
 	waiting.channelID = channelID
 	ticker := time.NewTicker(time.Millisecond * 1000)
 	waiting.currentTicker = ticker
 	waiting.stopChan = make(chan bool, 1)
 	go func() {
-		select {
-		case <-ticker.C:
-			{
-				currentClockStr := " :clock" + strconv.Itoa(clocks[currentClock]) + ": "
-				waiting.currentSession.ChannelMessageEdit(channelID, msg.ID, currentClockStr+waiting.middleMsg+currentClockStr)
-				currentClock++
-				if currentClock == 10 {
-					waiting.currentTicker.Stop()
-					waiting.stopChan <- true
+		for {
+			select {
+			case <-ticker.C:
+				{
+					currentClockStr := " :clock" + strconv.Itoa(clocks[currentClock]) + ": "
+					waiting.currentSession.ChannelMessageEdit(channelID, msg.ID, currentClockStr+waiting.middleMsg+currentClockStr)
+					currentClock++
+					if currentClock == 10 {
+						waiting.currentTicker.Stop()
+						waiting.stopChan <- true
+					}
 				}
-			}
-		case <-waiting.stopChan:
-			{
-				return
+			case <-waiting.stopChan:
+				{
+					return
+				}
 			}
 		}
 	}()
 }
 
 func (waiting *waitingMsg) delete() {
+	if waiting.err == true {
+		return
+	}
 	waiting.currentSession.ChannelMessageDelete(waiting.channelID, waiting.msgID)
 	waiting.currentTicker.Stop()
 	waiting.stopChan <- true

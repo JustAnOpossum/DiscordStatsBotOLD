@@ -221,14 +221,19 @@ func addGraph(base *imagick.MagickWand, graphType string, profilePic *image.Imag
 		base.CompositeImage(graphWand, imagick.COMPOSITE_OP_OVER, true, 350, 350)
 		break
 	case "pie":
-		var statsToSend []stat
+		var queryStats []stat
+		var statsToSend = make([]stat, 0)
 		var iconsToSend = make(map[string]icon)
-		db.findAllSort("gamestats", "-hours", bson.M{"id": userID, "ignore": false}, &statsToSend)
+		db.findAllSort("gamestats", "-hours", bson.M{"id": userID, "ignore": false}, &queryStats)
 
-		for _, item := range statsToSend {
+		for i, item := range queryStats {
+			if i == 5 {
+				break
+			}
 			var currentIcon icon
 			db.findOne("gameicons", bson.M{"game": item.Game}, &currentIcon)
 			iconsToSend[currentIcon.Game] = currentIcon
+			statsToSend = append(statsToSend, item)
 		}
 
 		pieChart, err := createPieChart(statsToSend, iconsToSend)

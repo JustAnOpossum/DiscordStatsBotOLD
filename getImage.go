@@ -107,10 +107,13 @@ func processImg(mimeType string, imgBuffer *bytes.Buffer, gameName string) error
 		return errors.Wrap(err, "Getting Img colors")
 	}
 	fmt.Fprintln(out, "Got colors")
+	R, G, B := imgColors.Main.RGB()
 	itemToInsert := icon{
 		Game:     gameName,
 		Location: "Images/Game/" + fileName,
-		Color:    imgColors.Main.RGBHex(),
+		R:        R,
+		G:        G,
+		B:        B,
 	}
 	db.insert("gameicons", itemToInsert)
 	fmt.Fprintln(out, "Inserted IMG")

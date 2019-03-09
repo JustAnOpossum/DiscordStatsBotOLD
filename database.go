@@ -19,7 +19,9 @@ type icon struct {
 	_id      bson.ObjectId
 	Game     string
 	Location string
-	Color    string
+	R        int
+	G        int
+	B        int
 }
 
 type blacklist struct {

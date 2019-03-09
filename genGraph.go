@@ -6,11 +6,9 @@ import (
 	"image"
 	"math"
 
-	"github.com/globalsign/mgo/bson"
 	"github.com/pkg/errors"
 	chart "github.com/wcharczuk/go-chart"
 	"github.com/wcharczuk/go-chart/drawing"
-	colors "gopkg.in/go-playground/colors.v1"
 )
 
 var barWidthConst = [5]int{500, 250, 188, 141, 113}
@@ -25,18 +23,13 @@ func createBarChart(userStats []stat, icons map[string]icon, profilePic *image.I
 	height = userStats[0].Hours
 	for _, value := range userStats {
 		var currentIcon = icons[value.Game]
-		hex, err := colors.ParseHEX(currentIcon.Color)
-		if err != nil {
-			return nil, errors.Wrap(err, "Parsing Hex")
-		}
-		RGB := hex.ToRGB()
 		roundedHours := math.Round(value.Hours)
 		valueToAdd := chart.Value{
 			Value: value.Hours,
 			Label: fmt.Sprintf("%g", roundedHours),
 			Style: chart.Style{
-				FillColor:   drawing.Color{R: RGB.R, G: RGB.G, B: RGB.B, A: 255},
-				StrokeColor: drawing.Color{R: RGB.R, G: RGB.G, B: RGB.B, A: 255},
+				FillColor:   drawing.Color{R: uint8(currentIcon.R), G: uint8(currentIcon.G), B: uint8(currentIcon.B), A: 255},
+				StrokeColor: drawing.Color{R: uint8(currentIcon.R), G: uint8(currentIcon.G), B: uint8(currentIcon.B), A: 255},
 			},
 		}
 		bars = append(bars, valueToAdd)
@@ -83,23 +76,13 @@ func createPieChart(userStats []stat, icons map[string]icon) (*bytes.Buffer, err
 	}
 
 	var valuesToAdd []chart.Value
-	totalHours := db.countHours(bson.M{"id": userStats[0].ID})
 
 	for _, item := range userStats {
-		var label string
-		parseHex, err := colors.ParseHEX(icons[item.Game].Color)
-		if err != nil {
-			return nil, errors.Wrap(err, "Parsing Hex")
-		}
-		if item.Hours/totalHours > 0.10 {
-			label = item.Game
-		}
-		RGB := parseHex.ToRGB()
 		valueToAdd := chart.Value{
-			Label: label,
+			Label: item.Game,
 			Value: item.Hours,
 			Style: chart.Style{
-				FillColor: drawing.Color{R: uint8(RGB.R), G: uint8(RGB.G), B: uint8(RGB.B), A: 255},
+				FillColor: drawing.Color{R: uint8(icons[item.Game].R), G: uint8(icons[item.Game].G), B: uint8(icons[item.Game].B), A: 255},
 				FontSize:  20,
 			},
 		}
